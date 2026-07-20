@@ -10,15 +10,17 @@ export async function login(prevState: string | null, formData: FormData): Promi
 
   if (!username || !password) return 'Completá todos los campos'
 
-  const { data: user } = await db
+  const { data: user, error: userError } = await db
     .from('users')
     .select('*')
     .eq('username', username)
     .single()
 
+  console.log('[login] username:', username, 'found:', !!user, 'error:', userError?.message)
   if (!user) return 'Usuario o contraseña incorrectos'
 
   const valid = await bcrypt.compare(password, user.password_hash)
+  console.log('[login] bcrypt valid:', valid)
   if (!valid) return 'Usuario o contraseña incorrectos'
 
   const { data: couple } = await db
