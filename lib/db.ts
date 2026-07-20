@@ -39,8 +39,8 @@ let _db: SupabaseClient<Database> | null = null
 
 export function getDb(): SupabaseClient<Database> {
   if (!_db) {
-    const url = process.env.SUPABASE_URL
-    const key = process.env.SUPABASE_SERVICE_KEY
+    const url = process.env.SUPABASE_URL?.replace(/^﻿/, '')
+    const key = process.env.SUPABASE_SERVICE_KEY?.replace(/^﻿/, '')
     if (!url || !key) throw new Error('Missing Supabase env vars: SUPABASE_URL and SUPABASE_SERVICE_KEY required')
     _db = createClient<Database>(url, key)
   }
