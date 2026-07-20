@@ -10,6 +10,7 @@ export async function login(prevState: string | null, formData: FormData): Promi
 
   if (!username || !password) return 'Completá todos los campos'
 
+  console.log('[login] supabase url:', process.env.SUPABASE_URL)
   const { data: user, error: userError } = await db
     .from('users')
     .select('*')
