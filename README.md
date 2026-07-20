@@ -1,4 +1,6 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Gasto Tracker
+
+Aplicación para el seguimiento de gastos personales y en pareja, construida con [Next.js](https://nextjs.org).
 
 ## Getting Started
 
