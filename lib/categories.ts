@@ -7,6 +7,10 @@ export const CATEGORIES = [
   { id: 'entretenimiento', label: 'Diversion', icon: '🎬' },
   { id: 'servicios', label: 'Servicios', icon: '💡' },
   { id: 'hogar', label: 'Hogar', icon: '🏠' },
+  { id: 'veterinario', label: 'Veterinario', icon: '🐾' },
+  { id: 'peluqueria', label: 'Peluquería', icon: '💇' },
+  { id: 'gimnasio', label: 'Gimnasio', icon: '🏋️' },
+  { id: 'feria', label: 'Feria', icon: '🥦' },
   { id: 'otros', label: 'Otros', icon: '📦' },
 ] as const
 
