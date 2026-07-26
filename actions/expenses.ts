@@ -21,7 +21,7 @@ export async function addExpense(prevState: string | null, formData: FormData): 
     if (!session.coupleId) return 'No tenés una cuenta de pareja configurada'
     const { error: errPar } = await db.from('expenses').insert({
       couple_id: session.coupleId,
-      user_id: session.userId,
+      created_by: session.userId,
       amount,
       category,
       description: description || null,
