@@ -28,7 +28,7 @@ export async function addExpense(prevState: string | null, formData: FormData): 
       date,
       is_income: isIncome,
     })
-    if (errPar) return 'Error al guardar. Intentá de nuevo.'
+    if (errPar) return `Error: ${errPar.message}`
     revalidatePath('/pareja')
   } else {
     const { error: errInd } = await db.from('expenses').insert({
@@ -39,7 +39,7 @@ export async function addExpense(prevState: string | null, formData: FormData): 
       date,
       is_income: isIncome,
     })
-    if (errInd) return 'Error al guardar. Intentá de nuevo.'
+    if (errInd) return `Error: ${errInd.message}`
     revalidatePath('/individual')
   }
 
