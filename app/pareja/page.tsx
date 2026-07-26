@@ -50,7 +50,7 @@ export default async function ParejaPage() {
 
   const { couple, expenses, deposits } = await getCoupleData(session.coupleId)
   const totalDepositado = deposits.reduce((s, d) => s + d.amount, 0)
-  const totalGastado = expenses.reduce((s, e) => s + e.amount, 0)
+  const totalGastado = expenses.filter(e => !e.is_income).reduce((s, e) => s + e.amount, 0)
   const disponible = totalDepositado - totalGastado
   const presupuesto = couple?.monthly_budget ?? 0
   const grouped = groupByDate(expenses)
@@ -124,6 +124,7 @@ export default async function ParejaPage() {
                         category={e.category as string}
                         description={e.description as string | null}
                         date={e.date as string}
+                        is_income={e.is_income}
                       />
                     ))}
                   </div>

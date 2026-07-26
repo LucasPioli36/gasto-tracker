@@ -39,7 +39,7 @@ export default async function IndividualPage() {
   if (!user) redirect('/login')
 
   const expenses = await getIndividualExpenses(user.id)
-  const totalGastado = expenses.reduce((sum, e) => sum + e.amount, 0)
+  const totalGastado = expenses.filter(e => !e.is_income).reduce((sum, e) => sum + e.amount, 0)
   const limiteGasto = user.salary - user.savings_goal
   const disponible = limiteGasto - totalGastado
   const grouped = groupByDate(expenses)
@@ -97,6 +97,7 @@ export default async function IndividualPage() {
                         category={e.category as string}
                         description={e.description as string | null}
                         date={e.date as string}
+                        is_income={e.is_income as boolean}
                       />
                     ))}
                   </div>

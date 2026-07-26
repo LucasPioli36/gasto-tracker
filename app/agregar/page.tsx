@@ -11,18 +11,56 @@ function AgregarForm() {
   const defaultTipo = (searchParams.get('tipo') as 'individual' | 'pareja') ?? 'individual'
   const [tipo, setTipo] = useState<'individual' | 'pareja'>(defaultTipo)
   const [selectedCategory, setSelectedCategory] = useState('')
+  const [isIngreso, setIsIngreso] = useState(false)
   const [error, action, pending] = useActionState(addExpense, null)
+
+  function handleTipoChange(t: boolean) {
+    setIsIngreso(t)
+    setSelectedCategory('')
+  }
 
   return (
     <div className="min-h-screen bg-gray-950">
       <div className="max-w-md mx-auto px-4 pt-6 pb-24">
-        <h1 className="text-xl font-bold text-white mb-6">Agregar gasto</h1>
+        <h1 className="text-xl font-bold text-white mb-6">
+          {isIngreso ? 'Agregar ingreso' : 'Agregar gasto'}
+        </h1>
 
         <form action={action} className="flex flex-col gap-5">
           <input type="hidden" name="tipo" value={tipo} />
-          <input type="hidden" name="category" value={selectedCategory} />
+          <input type="hidden" name="category" value={selectedCategory || (isIngreso ? 'otros' : '')} />
+          <input type="hidden" name="is_income" value={isIngreso ? '1' : '0'} />
 
-          {/* Tipo toggle */}
+          {/* Gasto / Ingreso switch */}
+          <div>
+            <p className="text-sm text-gray-400 mb-2 font-medium">Tipo</p>
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={() => handleTipoChange(false)}
+                className={`flex-1 py-3 rounded-xl text-sm font-semibold transition-colors ${
+                  !isIngreso
+                    ? 'bg-rose-600 text-white'
+                    : 'bg-gray-900 text-gray-400 hover:bg-gray-800'
+                }`}
+              >
+                💸 Gasto
+              </button>
+              <button
+                type="button"
+                onClick={() => handleTipoChange(true)}
+                className={`flex-1 py-3 rounded-xl text-sm font-semibold transition-colors ${
+                  isIngreso
+                    ? 'bg-emerald-600 text-white'
+                    : 'bg-gray-900 text-gray-400 hover:bg-gray-800'
+                }`}
+              >
+                💰 Ingreso
+              </button>
+            </div>
+          </div>
+
+          {/* Para quién */}
           <div>
             <p className="text-sm text-gray-400 mb-2 font-medium">¿Para quién?</p>
             <div className="flex gap-2">
@@ -61,40 +99,44 @@ function AgregarForm() {
             </div>
           </div>
 
-          {/* Category */}
-          <div>
-            <p className="text-sm text-gray-400 mb-2 font-medium">Categoría</p>
-            <div className="grid grid-cols-3 gap-2">
-              {CATEGORIES.map(({ id, label, icon }) => (
-                <button
-                  key={id}
-                  type="button"
-                  onClick={() => setSelectedCategory(id)}
-                  className={`flex flex-col items-center gap-1.5 py-3 px-2 rounded-xl text-xs font-medium transition-colors ${
-                    selectedCategory === id
-                      ? 'bg-emerald-600 text-white'
-                      : 'bg-gray-900 text-gray-400 hover:bg-gray-800'
-                  }`}
-                >
-                  <span className="text-2xl">{icon}</span>
-                  {label}
-                </button>
-              ))}
+          {/* Category — solo para gastos */}
+          {!isIngreso && (
+            <div>
+              <p className="text-sm text-gray-400 mb-2 font-medium">Categoría</p>
+              <div className="grid grid-cols-3 gap-2">
+                {CATEGORIES.map(({ id, label, icon }) => (
+                  <button
+                    key={id}
+                    type="button"
+                    onClick={() => setSelectedCategory(id)}
+                    className={`flex flex-col items-center gap-1.5 py-3 px-2 rounded-xl text-xs font-medium transition-colors ${
+                      selectedCategory === id
+                        ? 'bg-emerald-600 text-white'
+                        : 'bg-gray-900 text-gray-400 hover:bg-gray-800'
+                    }`}
+                  >
+                    <span className="text-2xl">{icon}</span>
+                    {label}
+                  </button>
+                ))}
+              </div>
             </div>
-          </div>
+          )}
 
-          {/* Description */}
+          {/* Referencia */}
           <div>
-            <p className="text-sm text-gray-400 mb-2 font-medium">Descripción <span className="text-gray-600">(opcional)</span></p>
+            <p className="text-sm text-gray-400 mb-2 font-medium">
+              Referencia <span className="text-gray-600">(opcional)</span>
+            </p>
             <input
               name="description"
               type="text"
-              placeholder="Ej: almuerzo con amigos"
+              placeholder={isIngreso ? 'Ej: sueldo, freelance' : 'Ej: almuerzo con amigos'}
               className="w-full bg-gray-900 border border-gray-800 rounded-xl px-4 py-3 text-white placeholder-gray-600 focus:outline-none focus:border-emerald-600 transition-colors text-base"
             />
           </div>
 
-          {/* Date */}
+          {/* Fecha */}
           <div>
             <p className="text-sm text-gray-400 mb-2 font-medium">Fecha</p>
             <input
@@ -113,10 +155,12 @@ function AgregarForm() {
 
           <button
             type="submit"
-            disabled={pending || !selectedCategory}
-            className="bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold rounded-xl py-4 text-base transition-colors mt-2"
+            disabled={pending || (!isIngreso && !selectedCategory)}
+            className={`${
+              isIngreso ? 'bg-emerald-600 hover:bg-emerald-500' : 'bg-rose-600 hover:bg-rose-500'
+            } disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold rounded-xl py-4 text-base transition-colors mt-2`}
           >
-            {pending ? 'Guardando...' : 'Guardar gasto'}
+            {pending ? 'Guardando...' : isIngreso ? 'Guardar ingreso' : 'Guardar gasto'}
           </button>
         </form>
       </div>

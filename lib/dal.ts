@@ -42,7 +42,7 @@ export const getIndividualExpenses = cache(async (userId: string) => {
 
 export const getCoupleData = cache(async (coupleId: string): Promise<{
   couple: { id: string; user1_id: string; user2_id: string; monthly_budget: number } | null
-  expenses: { id: string; amount: number; category: string; description: string | null; date: string; user_id: string | null; couple_id: string | null; created_at: string }[]
+  expenses: { id: string; amount: number; category: string; description: string | null; date: string; user_id: string | null; couple_id: string | null; created_at: string; is_income: boolean }[]
   deposits: { id: string; couple_id: string; user_id: string; amount: number; date: string; users: { name: string } | null }[]
 }> => {
   const { start, end } = currentMonthRange()
@@ -60,7 +60,7 @@ export const getCoupleData = cache(async (coupleId: string): Promise<{
 
   return {
     couple: coupleRes.data as { id: string; user1_id: string; user2_id: string; monthly_budget: number } | null,
-    expenses: (expensesRes.data ?? []) as { id: string; amount: number; category: string; description: string | null; date: string; user_id: string | null; couple_id: string | null; created_at: string }[],
+    expenses: (expensesRes.data ?? []) as { id: string; amount: number; category: string; description: string | null; date: string; user_id: string | null; couple_id: string | null; created_at: string; is_income: boolean }[],
     deposits: ((depositsRes.data ?? []) as unknown as { id: string; couple_id: string; user_id: string; amount: number; date: string; users: { name: string } | null }[]),
   }
 })

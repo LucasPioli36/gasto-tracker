@@ -10,27 +10,32 @@ type Props = {
   category: string
   description: string | null
   date: string
+  is_income?: boolean
 }
 
-export default function ExpenseItem({ id, amount, category, description, date }: Props) {
+export default function ExpenseItem({ id, amount, category, description, date, is_income }: Props) {
   const [isPending, startTransition] = useTransition()
 
   const handleDelete = () => {
-    if (!confirm('¿Eliminar este gasto?')) return
+    if (!confirm(is_income ? '¿Eliminar este ingreso?' : '¿Eliminar este gasto?')) return
     startTransition(() => deleteExpense(id))
   }
 
   return (
     <div className={`flex items-center gap-3 p-3 rounded-xl bg-gray-900 transition-opacity ${isPending ? 'opacity-40' : ''}`}>
-      <span className="text-2xl">{getCategoryIcon(category)}</span>
+      <span className="text-2xl">{is_income ? '💰' : getCategoryIcon(category)}</span>
       <div className="flex-1 min-w-0">
         <p className="text-sm font-medium text-white truncate">
-          {description || getCategoryLabel(category)}
+          {description || (is_income ? 'Ingreso' : getCategoryLabel(category))}
         </p>
-        <p className="text-xs text-gray-500">{getCategoryLabel(category)} · {formatDate(date)}</p>
+        <p className="text-xs text-gray-500">
+          {is_income ? 'Ingreso' : getCategoryLabel(category)} · {formatDate(date)}
+        </p>
       </div>
       <div className="flex items-center gap-3">
-        <span className="text-sm font-semibold text-white">{formatUYU(amount)}</span>
+        <span className={`text-sm font-semibold ${is_income ? 'text-emerald-400' : 'text-white'}`}>
+          {is_income ? '+' : ''}{formatUYU(amount)}
+        </span>
         <button
           onClick={handleDelete}
           disabled={isPending}

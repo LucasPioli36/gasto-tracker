@@ -8,13 +8,14 @@ export async function addExpense(prevState: string | null, formData: FormData): 
   const session = await verifySession()
 
   const amount = parseFloat(formData.get('amount') as string)
-  const category = formData.get('category') as string
+  const category = (formData.get('category') as string) || 'otros'
   const description = (formData.get('description') as string)?.trim()
   const tipo = formData.get('tipo') as 'individual' | 'pareja'
   const date = (formData.get('date') as string) || new Date().toISOString().split('T')[0]
+  const isIncome = formData.get('is_income') === '1'
 
   if (!amount || amount <= 0) return 'Ingresá un monto válido'
-  if (!category) return 'Elegí una categoría'
+  if (!isIncome && !category) return 'Elegí una categoría'
 
   if (tipo === 'pareja') {
     if (!session.coupleId) return 'No tenés una cuenta de pareja configurada'
@@ -24,6 +25,7 @@ export async function addExpense(prevState: string | null, formData: FormData): 
       category,
       description: description || null,
       date,
+      is_income: isIncome,
     })
     revalidatePath('/pareja')
   } else {
@@ -33,6 +35,7 @@ export async function addExpense(prevState: string | null, formData: FormData): 
       category,
       description: description || null,
       date,
+      is_income: isIncome,
     })
     revalidatePath('/individual')
   }
