@@ -21,6 +21,7 @@ export async function addExpense(prevState: string | null, formData: FormData): 
     if (!session.coupleId) return 'No tenés una cuenta de pareja configurada'
     await db.from('expenses').insert({
       couple_id: session.coupleId,
+      user_id: session.userId,
       amount,
       category,
       description: description || null,
@@ -54,8 +55,11 @@ export async function deleteExpense(id: string) {
     .single()
 
   if (!expense) return
-  if (expense.user_id && expense.user_id !== session.userId) return
-  if (expense.couple_id && expense.couple_id !== session.coupleId) return
+  if (expense.couple_id) {
+    if (expense.couple_id !== session.coupleId) return
+  } else {
+    if (expense.user_id !== session.userId) return
+  }
 
   await db.from('expenses').delete().eq('id', id)
   revalidatePath('/individual')

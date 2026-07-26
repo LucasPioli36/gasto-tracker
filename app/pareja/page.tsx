@@ -125,6 +125,7 @@ export default async function ParejaPage() {
                         description={e.description as string | null}
                         date={e.date as string}
                         is_income={e.is_income}
+                        createdBy={(e.users as { name: string } | null)?.name ?? null}
                       />
                     ))}
                   </div>

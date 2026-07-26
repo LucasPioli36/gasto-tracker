@@ -11,9 +11,10 @@ type Props = {
   description: string | null
   date: string
   is_income?: boolean
+  createdBy?: string | null
 }
 
-export default function ExpenseItem({ id, amount, category, description, date, is_income }: Props) {
+export default function ExpenseItem({ id, amount, category, description, date, is_income, createdBy }: Props) {
   const [isPending, startTransition] = useTransition()
 
   const handleDelete = () => {
@@ -30,6 +31,7 @@ export default function ExpenseItem({ id, amount, category, description, date, i
         </p>
         <p className="text-xs text-gray-500">
           {is_income ? 'Ingreso' : getCategoryLabel(category)} · {formatDate(date)}
+          {createdBy && <span className="text-gray-600"> · {createdBy}</span>}
         </p>
       </div>
       <div className="flex items-center gap-3">
