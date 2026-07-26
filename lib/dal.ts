@@ -42,14 +42,14 @@ export const getIndividualExpenses = cache(async (userId: string) => {
 
 export const getCoupleData = cache(async (coupleId: string): Promise<{
   couple: { id: string; user1_id: string; user2_id: string; monthly_budget: number } | null
-  expenses: { id: string; amount: number; category: string; description: string | null; date: string; user_id: string | null; couple_id: string | null; created_at: string; is_income: boolean; users: { name: string } | null }[]
+  expenses: { id: string; amount: number; category: string; description: string | null; date: string; user_id: string | null; couple_id: string | null; created_at: string; is_income: boolean; createdByName: string | null }[]
   deposits: { id: string; couple_id: string; user_id: string; amount: number; date: string; users: { name: string } | null }[]
 }> => {
   const { start, end } = currentMonthRange()
 
   const [coupleRes, expensesRes, depositsRes] = await Promise.all([
     db.from('couple').select('*').eq('id', coupleId).single(),
-    db.from('expenses').select('*, users(name)').eq('couple_id', coupleId)
+    db.from('expenses').select('*').eq('couple_id', coupleId)
       .gte('date', start).lte('date', end)
       .order('date', { ascending: false })
       .order('created_at', { ascending: false }),
@@ -58,9 +58,25 @@ export const getCoupleData = cache(async (coupleId: string): Promise<{
       .order('date', { ascending: false }),
   ])
 
+  const couple = coupleRes.data as { id: string; user1_id: string; user2_id: string; monthly_budget: number } | null
+  const rawExpenses = (expensesRes.data ?? []) as { id: string; amount: number; category: string; description: string | null; date: string; user_id: string | null; couple_id: string | null; created_at: string; is_income: boolean }[]
+
+  // Fetch names for the two couple members in one query
+  let nameMap: Record<string, string> = {}
+  if (couple) {
+    const { data: users } = await db
+      .from('users')
+      .select('id, name')
+      .in('id', [couple.user1_id, couple.user2_id])
+    if (users) nameMap = Object.fromEntries(users.map((u) => [u.id, u.name]))
+  }
+
   return {
-    couple: coupleRes.data as { id: string; user1_id: string; user2_id: string; monthly_budget: number } | null,
-    expenses: (expensesRes.data ?? []) as { id: string; amount: number; category: string; description: string | null; date: string; user_id: string | null; couple_id: string | null; created_at: string; is_income: boolean; users: { name: string } | null }[],
+    couple,
+    expenses: rawExpenses.map((e) => ({
+      ...e,
+      createdByName: e.user_id ? (nameMap[e.user_id] ?? null) : null,
+    })),
     deposits: ((depositsRes.data ?? []) as unknown as { id: string; couple_id: string; user_id: string; amount: number; date: string; users: { name: string } | null }[]),
   }
 })
