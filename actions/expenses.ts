@@ -19,7 +19,7 @@ export async function addExpense(prevState: string | null, formData: FormData): 
 
   if (tipo === 'pareja') {
     if (!session.coupleId) return 'No tenés una cuenta de pareja configurada'
-    await db.from('expenses').insert({
+    const { error: errPar } = await db.from('expenses').insert({
       couple_id: session.coupleId,
       user_id: session.userId,
       amount,
@@ -28,9 +28,10 @@ export async function addExpense(prevState: string | null, formData: FormData): 
       date,
       is_income: isIncome,
     })
+    if (errPar) return 'Error al guardar. Intentá de nuevo.'
     revalidatePath('/pareja')
   } else {
-    await db.from('expenses').insert({
+    const { error: errInd } = await db.from('expenses').insert({
       user_id: session.userId,
       amount,
       category,
@@ -38,6 +39,7 @@ export async function addExpense(prevState: string | null, formData: FormData): 
       date,
       is_income: isIncome,
     })
+    if (errInd) return 'Error al guardar. Intentá de nuevo.'
     revalidatePath('/individual')
   }
 
