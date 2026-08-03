@@ -1,7 +1,7 @@
 'use client'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { User, Users, Plus, Settings } from 'lucide-react'
+import { User, Users, Plus, Settings, BarChart2 } from 'lucide-react'
 
 export default function BottomNav() {
   const pathname = usePathname()
@@ -26,6 +26,10 @@ export default function BottomNav() {
         <Link href={`/agregar?tipo=${tipo}`} className={linkClass('/agregar')}>
           <Plus size={22} />
           <span className="text-xs font-medium">Agregar</span>
+        </Link>
+        <Link href="/metricas" className={linkClass('/metricas')}>
+          <BarChart2 size={22} />
+          <span className="text-xs font-medium">Métricas</span>
         </Link>
         <Link href="/config" className={linkClass('/config')}>
           <Settings size={22} />

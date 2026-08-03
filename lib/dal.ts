@@ -3,6 +3,7 @@ import { cache } from 'react'
 import { redirect } from 'next/navigation'
 import { getSession } from './session'
 import { db } from './db'
+import { movementTotals } from './totals'
 
 export const verifySession = cache(async () => {
   const session = await getSession()
@@ -79,4 +80,63 @@ export const getCoupleData = cache(async (coupleId: string): Promise<{
     })),
     deposits: ((depositsRes.data ?? []) as unknown as { id: string; couple_id: string; user_id: string; amount: number; date: string; users: { name: string } | null }[]),
   }
+})
+
+// Los meses se agrupan por el prefijo YYYY-MM del campo date (string),
+// sin pasar por Date/toISOString para evitar corrimientos de timezone.
+function lastMonthsMeta(count: number) {
+  const now = new Date()
+  return Array.from({ length: count }, (_, i) => {
+    const d = new Date(now.getFullYear(), now.getMonth() - (count - 1 - i), 1)
+    const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
+    const monthName = d.toLocaleDateString('es-UY', { month: 'long' })
+    const label = d.getFullYear() === now.getFullYear() ? monthName : `${monthName} ${d.getFullYear()}`
+    return { key, label, current: i === count - 1 }
+  })
+}
+
+export const getIndividualHistory = cache(async (userId: string, count = 6) => {
+  const months = lastMonthsMeta(count)
+  const { data } = await db
+    .from('expenses')
+    .select('amount, date, is_income')
+    .eq('user_id', userId)
+    .gte('date', `${months[0].key}-01`)
+
+  const byMonth = new Map<string, { amount: number; is_income: boolean }[]>()
+  for (const e of data ?? []) {
+    const key = e.date.slice(0, 7)
+    if (!byMonth.has(key)) byMonth.set(key, [])
+    byMonth.get(key)!.push(e)
+  }
+
+  return months.map((m) => ({ ...m, ...movementTotals(byMonth.get(m.key) ?? []) }))
+})
+
+export const getCoupleHistory = cache(async (coupleId: string, count = 6) => {
+  const months = lastMonthsMeta(count)
+  const start = `${months[0].key}-01`
+
+  const [expRes, depRes] = await Promise.all([
+    db.from('expenses').select('amount, date, is_income').eq('couple_id', coupleId).gte('date', start),
+    db.from('couple_deposits').select('amount, date').eq('couple_id', coupleId).gte('date', start),
+  ])
+
+  const expByMonth = new Map<string, { amount: number; is_income: boolean }[]>()
+  for (const e of expRes.data ?? []) {
+    const key = e.date.slice(0, 7)
+    if (!expByMonth.has(key)) expByMonth.set(key, [])
+    expByMonth.get(key)!.push(e)
+  }
+  const depByMonth = new Map<string, number>()
+  for (const d of depRes.data ?? []) {
+    const key = d.date.slice(0, 7)
+    depByMonth.set(key, (depByMonth.get(key) ?? 0) + d.amount)
+  }
+
+  return months.map((m) => {
+    const { spent, income } = movementTotals(expByMonth.get(m.key) ?? [])
+    const deposited = depByMonth.get(m.key) ?? 0
+    return { ...m, spent, income, deposited, fondo: deposited + income }
+  })
 })

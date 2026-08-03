@@ -12,3 +12,17 @@ export function movementTotals(rows: Movement[]) {
   }
   return { spent, income }
 }
+
+export type CategoryMovement = Movement & { category: string }
+
+// GROUP BY category sobre los gastos (excluye ingresos), ordenado de mayor a menor.
+export function categoryTotals(rows: CategoryMovement[]) {
+  const map = new Map<string, number>()
+  for (const r of rows) {
+    if (r.is_income) continue
+    map.set(r.category, (map.get(r.category) ?? 0) + r.amount)
+  }
+  return [...map.entries()]
+    .map(([category, total]) => ({ category, total }))
+    .sort((a, b) => b.total - a.total)
+}
