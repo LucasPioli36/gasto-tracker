@@ -2,6 +2,7 @@ import { redirect } from 'next/navigation'
 import { logout } from '@/actions/auth'
 import ProgressBar from '@/components/ProgressBar'
 import { getCurrentUser, getIndividualExpenses, getCoupleData, verifySession } from '@/lib/dal'
+import { movementTotals } from '@/lib/totals'
 
 function formatUYU(amount: number) {
   return new Intl.NumberFormat('es-UY', {
@@ -22,14 +23,15 @@ export default async function HomePage() {
   if (!user) redirect('/login')
 
   const expenses = await getIndividualExpenses(user.id)
-  const totalGastado = expenses.reduce((sum, e) => sum + e.amount, 0)
-  const limiteGasto = user.salary - user.savings_goal
+  const { spent: totalGastado, income: totalIngresos } = movementTotals(expenses)
+  const limiteGasto = user.salary + totalIngresos - user.savings_goal
   const disponible = limiteGasto - totalGastado
 
   const coupleData = session.coupleId ? await getCoupleData(session.coupleId) : null
   const totalDepositado = coupleData?.deposits.reduce((s, d) => s + d.amount, 0) ?? 0
-  const totalGastadoPareja = coupleData?.expenses.reduce((s, e) => s + e.amount, 0) ?? 0
-  const disponiblePareja = totalDepositado - totalGastadoPareja
+  const { spent: totalGastadoPareja, income: totalIngresosPareja } = movementTotals(coupleData?.expenses ?? [])
+  const fondoPareja = totalDepositado + totalIngresosPareja
+  const disponiblePareja = fondoPareja - totalGastadoPareja
 
   return (
     <div className="flex flex-col gap-5">
@@ -61,10 +63,14 @@ export default async function HomePage() {
 
         <ProgressBar value={totalGastado} max={limiteGasto} />
 
-        <div className="grid grid-cols-3 gap-2 text-center">
+        <div className="grid grid-cols-4 gap-2 text-center">
           <div>
             <p className="text-xs text-gray-600">Sueldo</p>
             <p className="text-sm font-semibold text-white">{formatUYU(user.salary)}</p>
+          </div>
+          <div>
+            <p className="text-xs text-gray-600">Ingresos</p>
+            <p className="text-sm font-semibold text-emerald-400">{formatUYU(totalIngresos)}</p>
           </div>
           <div>
             <p className="text-xs text-gray-600">Meta ahorro</p>
@@ -92,9 +98,9 @@ export default async function HomePage() {
             </p>
           </div>
 
-          <ProgressBar value={totalGastadoPareja} max={totalDepositado > 0 ? totalDepositado : (coupleData.couple?.monthly_budget ?? 1)} />
+          <ProgressBar value={totalGastadoPareja} max={fondoPareja > 0 ? fondoPareja : (coupleData.couple?.monthly_budget ?? 1)} />
 
-          <div className="grid grid-cols-3 gap-2 text-center">
+          <div className="grid grid-cols-4 gap-2 text-center">
             <div>
               <p className="text-xs text-gray-600">Presupuesto</p>
               <p className="text-sm font-semibold text-white">{formatUYU(coupleData.couple?.monthly_budget ?? 0)}</p>
@@ -102,6 +108,10 @@ export default async function HomePage() {
             <div>
               <p className="text-xs text-gray-600">Depositado</p>
               <p className="text-sm font-semibold text-emerald-400">{formatUYU(totalDepositado)}</p>
+            </div>
+            <div>
+              <p className="text-xs text-gray-600">Ingresos</p>
+              <p className="text-sm font-semibold text-emerald-400">{formatUYU(totalIngresosPareja)}</p>
             </div>
             <div>
               <p className="text-xs text-gray-600">Gastado</p>

@@ -2,6 +2,7 @@ import ProgressBar from '@/components/ProgressBar'
 import ExpenseItem from '@/components/ExpenseItem'
 import BottomNav from '@/components/BottomNav'
 import { getCoupleData, verifySession } from '@/lib/dal'
+import { movementTotals } from '@/lib/totals'
 import DepositForm from './DepositForm'
 
 function formatUYU(amount: number) {
@@ -50,8 +51,9 @@ export default async function ParejaPage() {
 
   const { couple, expenses, deposits } = await getCoupleData(session.coupleId)
   const totalDepositado = deposits.reduce((s, d) => s + d.amount, 0)
-  const totalGastado = expenses.filter(e => !e.is_income).reduce((s, e) => s + e.amount, 0)
-  const disponible = totalDepositado - totalGastado
+  const { spent: totalGastado, income: totalIngresos } = movementTotals(expenses)
+  const fondo = totalDepositado + totalIngresos
+  const disponible = fondo - totalGastado
   const presupuesto = couple?.monthly_budget ?? 0
   const grouped = groupByDate(expenses)
 
@@ -69,8 +71,8 @@ export default async function ParejaPage() {
                 {formatUYU(disponible)}
               </p>
             </div>
-            <ProgressBar value={totalGastado} max={totalDepositado > 0 ? totalDepositado : presupuesto || 1} />
-            <div className="grid grid-cols-3 gap-2 text-center">
+            <ProgressBar value={totalGastado} max={fondo > 0 ? fondo : presupuesto || 1} />
+            <div className="grid grid-cols-4 gap-2 text-center">
               <div>
                 <p className="text-xs text-gray-600">Presupuesto</p>
                 <p className="text-sm font-semibold text-white">{formatUYU(presupuesto)}</p>
@@ -78,6 +80,10 @@ export default async function ParejaPage() {
               <div>
                 <p className="text-xs text-gray-600">Depositado</p>
                 <p className="text-sm font-semibold text-emerald-400">{formatUYU(totalDepositado)}</p>
+              </div>
+              <div>
+                <p className="text-xs text-gray-600">Ingresos</p>
+                <p className="text-sm font-semibold text-emerald-400">{formatUYU(totalIngresos)}</p>
               </div>
               <div>
                 <p className="text-xs text-gray-600">Gastado</p>

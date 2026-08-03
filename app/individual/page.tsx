@@ -2,6 +2,7 @@ import ProgressBar from '@/components/ProgressBar'
 import ExpenseItem from '@/components/ExpenseItem'
 import BottomNav from '@/components/BottomNav'
 import { getCurrentUser, getIndividualExpenses } from '@/lib/dal'
+import { movementTotals } from '@/lib/totals'
 import { redirect } from 'next/navigation'
 
 function formatUYU(amount: number) {
@@ -39,8 +40,8 @@ export default async function IndividualPage() {
   if (!user) redirect('/login')
 
   const expenses = await getIndividualExpenses(user.id)
-  const totalGastado = expenses.filter(e => !e.is_income).reduce((sum, e) => sum + e.amount, 0)
-  const limiteGasto = user.salary - user.savings_goal
+  const { spent: totalGastado, income: totalIngresos } = movementTotals(expenses)
+  const limiteGasto = user.salary + totalIngresos - user.savings_goal
   const disponible = limiteGasto - totalGastado
   const grouped = groupByDate(expenses)
 
@@ -59,10 +60,14 @@ export default async function IndividualPage() {
               </p>
             </div>
             <ProgressBar value={totalGastado} max={limiteGasto} />
-            <div className="grid grid-cols-3 gap-2 text-center">
+            <div className="grid grid-cols-4 gap-2 text-center">
               <div>
                 <p className="text-xs text-gray-600">Límite</p>
                 <p className="text-sm font-semibold text-white">{formatUYU(limiteGasto)}</p>
+              </div>
+              <div>
+                <p className="text-xs text-gray-600">Ingresos</p>
+                <p className="text-sm font-semibold text-emerald-400">{formatUYU(totalIngresos)}</p>
               </div>
               <div>
                 <p className="text-xs text-gray-600">Gastado</p>
