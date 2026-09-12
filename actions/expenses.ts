@@ -69,23 +69,3 @@ export async function deleteExpense(id: string) {
   revalidatePath('/home')
 }
 
-export async function addDeposit(prevState: string | null, formData: FormData): Promise<string | null> {
-  const session = await verifySession()
-  if (!session.coupleId) return 'No tenés una cuenta de pareja'
-
-  const amount = parseFloat(formData.get('amount') as string)
-  if (!amount || amount <= 0) return 'Ingresá un monto válido'
-
-  const date = (formData.get('date') as string) || new Date().toISOString().split('T')[0]
-
-  await db.from('couple_deposits').insert({
-    couple_id: session.coupleId,
-    user_id: session.userId,
-    amount,
-    date,
-  })
-
-  revalidatePath('/pareja')
-  revalidatePath('/home')
-  return null
-}

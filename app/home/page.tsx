@@ -28,9 +28,8 @@ export default async function HomePage() {
   const disponible = limiteGasto - totalGastado
 
   const coupleData = session.coupleId ? await getCoupleData(session.coupleId) : null
-  const totalDepositado = coupleData?.deposits.reduce((s, d) => s + d.amount, 0) ?? 0
   const { spent: totalGastadoPareja, income: totalIngresosPareja } = movementTotals(coupleData?.expenses ?? [])
-  const fondoPareja = totalDepositado + totalIngresosPareja
+  const fondoPareja = (coupleData?.couple?.monthly_budget ?? 0) + totalIngresosPareja
   const disponiblePareja = fondoPareja - totalGastadoPareja
 
   return (
@@ -100,14 +99,10 @@ export default async function HomePage() {
 
           <ProgressBar value={totalGastadoPareja} max={fondoPareja > 0 ? fondoPareja : (coupleData.couple?.monthly_budget ?? 1)} />
 
-          <div className="grid grid-cols-4 gap-2 text-center">
+          <div className="grid grid-cols-3 gap-2 text-center">
             <div>
               <p className="text-xs text-gray-600">Presupuesto</p>
               <p className="text-sm font-semibold text-white">{formatUYU(coupleData.couple?.monthly_budget ?? 0)}</p>
-            </div>
-            <div>
-              <p className="text-xs text-gray-600">Depositado</p>
-              <p className="text-sm font-semibold text-emerald-400">{formatUYU(totalDepositado)}</p>
             </div>
             <div>
               <p className="text-xs text-gray-600">Ingresos</p>
