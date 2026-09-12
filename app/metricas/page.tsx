@@ -52,7 +52,7 @@ export default async function MetricasPage() {
   const expenses = await getIndividualExpenses(user.id)
   const coupleData = session.coupleId ? await getCoupleData(session.coupleId) : null
   const individualHistory = await getIndividualHistory(user.id)
-  const coupleHistory = session.coupleId ? await getCoupleHistory(session.coupleId) : null
+  const coupleHistory = session.coupleId ? await getCoupleHistory(session.coupleId, coupleData?.couple?.monthly_budget ?? 0) : null
 
   // Ritmo del mes
   const { spent: gastado, income: ingresos } = movementTotals(expenses)
@@ -133,7 +133,7 @@ export default async function MetricasPage() {
           {/* Últimos 6 meses — pareja */}
           {coupleHistory && (
             <div className="bg-gray-900 rounded-2xl p-5">
-              <h2 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-4">Pareja · fondo vs gastado</h2>
+              <h2 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-4">Pareja · presupuesto vs gastado</h2>
               <div className="flex flex-col gap-4">
                 {coupleHistory.map((m) => (
                   <div key={m.key}>
@@ -145,7 +145,7 @@ export default async function MetricasPage() {
                       <Bar pct={(m.spent / maxPareja) * 100} color="bg-rose-500" />
                     </div>
                     <p className="text-xs text-gray-600 mt-1.5">
-                      Fondo {formatUYU(m.fondo)} · Gastado {formatUYU(m.spent)} · Ahorro{' '}
+                      Presupuesto {formatUYU(m.fondo)} · Gastado {formatUYU(m.spent)} · Ahorro{' '}
                       <span className={m.fondo - m.spent >= 0 ? 'text-emerald-400' : 'text-red-400'}>
                         {formatUYU(m.fondo - m.spent)}
                       </span>
