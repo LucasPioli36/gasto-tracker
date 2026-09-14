@@ -5,6 +5,11 @@ import { getCoupleData, verifySession } from '@/lib/dal'
 import { movementTotals } from '@/lib/totals'
 import DepositForm from './DepositForm'
 
+const PERSON_TARGETS: Record<string, number> = {
+  'Lucas': 48389,
+  'Emi': 17330,
+}
+
 function formatUYU(amount: number) {
   return new Intl.NumberFormat('es-UY', {
     style: 'currency',
@@ -57,6 +62,16 @@ export default async function ParejaPage() {
   const presupuesto = couple?.monthly_budget ?? 0
   const grouped = groupByDate(expenses)
 
+  const spentByPerson: Record<string, number> = {}
+  for (const e of expenses) {
+    if (!e.is_income && e.createdByName) {
+      spentByPerson[e.createdByName] = (spentByPerson[e.createdByName] ?? 0) + e.amount
+    }
+  }
+  const members = couple
+    ? [{ name: couple.user1_name }, { name: couple.user2_name }].filter((m) => m.name && PERSON_TARGETS[m.name] !== undefined)
+    : []
+
   return (
     <div className="min-h-screen bg-gray-950">
       <div className="max-w-md mx-auto px-4 pt-6 pb-28">
@@ -91,6 +106,26 @@ export default async function ParejaPage() {
               </div>
             </div>
           </div>
+
+          {/* Per-person spending targets */}
+          {members.length > 0 && (
+            <div className="bg-gray-900 rounded-2xl p-4 flex flex-col gap-3">
+              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Gasto por persona</p>
+              {members.map(({ name }) => {
+                const spent = spentByPerson[name] ?? 0
+                const target = PERSON_TARGETS[name]
+                const pct = Math.min(Math.round((spent / target) * 100), 999)
+                const color = pct >= 100 ? 'text-red-400' : pct >= 50 ? 'text-amber-400' : 'text-emerald-400'
+                return (
+                  <div key={name} className="flex items-center justify-between gap-2">
+                    <span className="text-sm text-gray-300 w-16 shrink-0">{name}</span>
+                    <span className="text-sm text-white">{formatUYU(spent)} / {formatUYU(target)}</span>
+                    <span className={`text-sm font-semibold ${color} w-12 text-right shrink-0`}>{pct}%</span>
+                  </div>
+                )
+              })}
+            </div>
+          )}
 
           {/* Deposits this month */}
           {deposits.length > 0 && (
