@@ -30,6 +30,7 @@ export async function addExpense(prevState: string | null, formData: FormData): 
     })
     if (errPar) return 'Error al guardar. Intentá de nuevo.'
     revalidatePath('/pareja')
+    revalidatePath('/individual')
   } else {
     const { error: errInd } = await db.from('expenses').insert({
       user_id: session.userId,
@@ -44,6 +45,7 @@ export async function addExpense(prevState: string | null, formData: FormData): 
   }
 
   revalidatePath('/home')
+  revalidatePath('/metricas')
   redirect(tipo === 'pareja' ? '/pareja' : '/individual')
 }
 
@@ -67,5 +69,5 @@ export async function deleteExpense(id: string) {
   revalidatePath('/individual')
   revalidatePath('/pareja')
   revalidatePath('/home')
+  revalidatePath('/metricas')
 }
-

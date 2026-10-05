@@ -103,6 +103,7 @@ export default async function IndividualPage() {
                         description={e.description as string | null}
                         date={e.date as string}
                         is_income={e.is_income as boolean}
+                        shared={!!e.couple_id}
                       />
                     ))}
                   </div>

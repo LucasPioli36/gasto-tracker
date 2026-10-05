@@ -12,6 +12,9 @@ export const CATEGORIES = [
   { id: 'gimnasio', label: 'Gimnasio', icon: '🏋️' },
   { id: 'feria', label: 'Feria', icon: '🥦' },
   { id: 'empresa', label: 'Empresa', icon: '💼' },
+  { id: 'key', label: 'Key', icon: '🔑' },
+  { id: 'estacion', label: 'Estación', icon: '⛽' },
+  { id: 'pedidosya', label: 'PedidosYa', icon: '🛵' },
   { id: 'otros', label: 'Otros', icon: '📦' },
 ] as const
 

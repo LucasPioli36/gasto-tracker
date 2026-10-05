@@ -3,7 +3,7 @@ import { cache } from 'react'
 import { redirect } from 'next/navigation'
 import { getSession } from './session'
 import { db } from './db'
-import { movementTotals } from './totals'
+import { movementTotals, contributionTotals } from './totals'
 
 export const verifySession = cache(async () => {
   const session = await getSession()
@@ -28,22 +28,34 @@ function currentMonthRange() {
   return { start, end }
 }
 
+// Lo individual = mis movimientos propios + los gastos de pareja que yo cargué.
+// Los ingresos de pareja van al fondo común, no a mi bolsillo.
+// WHERE user_id = :me OR (created_by = :me AND NOT (couple_id IS NOT NULL AND is_income))
+function ownMovementsFilter(userId: string) {
+  return `user_id.eq.${userId},created_by.eq.${userId}`
+}
+
+function isOwnMovement(row: { couple_id: string | null; is_income: boolean }) {
+  return !(row.couple_id && row.is_income)
+}
+
 export const getIndividualExpenses = cache(async (userId: string) => {
   const { start, end } = currentMonthRange()
   const { data } = await db
     .from('expenses')
     .select('*')
-    .eq('user_id', userId)
+    .or(ownMovementsFilter(userId))
     .gte('date', start)
     .lte('date', end)
     .order('date', { ascending: false })
     .order('created_at', { ascending: false })
-  return data ?? []
+  return (data ?? []).filter(isOwnMovement)
 })
 
 export const getCoupleData = cache(async (coupleId: string): Promise<{
   couple: { id: string; user1_id: string; user2_id: string; monthly_budget: number; user1_name: string; user2_name: string } | null
-  expenses: { id: string; amount: number; category: string; description: string | null; date: string; user_id: string | null; couple_id: string | null; created_at: string; is_income: boolean; createdByName: string | null }[]
+  expenses: { id: string; amount: number; category: string; description: string | null; date: string; user_id: string | null; couple_id: string | null; created_by: string | null; created_at: string; is_income: boolean; createdByName: string | null }[]
+  members: { id: string; name: string }[]
 }> => {
   const { start, end } = currentMonthRange()
 
@@ -73,6 +85,9 @@ export const getCoupleData = cache(async (coupleId: string): Promise<{
       ...e,
       createdByName: e.created_by ? (nameMap[e.created_by] ?? null) : null,
     })),
+    members: couple
+      ? [couple.user1_id, couple.user2_id].map((id) => ({ id, name: nameMap[id] ?? 'Alguien' }))
+      : [],
   }
 })
 
@@ -93,12 +108,12 @@ export const getIndividualHistory = cache(async (userId: string, count = 6) => {
   const months = lastMonthsMeta(count)
   const { data } = await db
     .from('expenses')
-    .select('amount, date, is_income')
-    .eq('user_id', userId)
+    .select('amount, date, is_income, couple_id')
+    .or(ownMovementsFilter(userId))
     .gte('date', `${months[0].key}-01`)
 
   const byMonth = new Map<string, { amount: number; is_income: boolean }[]>()
-  for (const e of data ?? []) {
+  for (const e of (data ?? []).filter(isOwnMovement)) {
     const key = e.date.slice(0, 7)
     if (!byMonth.has(key)) byMonth.set(key, [])
     byMonth.get(key)!.push(e)
@@ -111,9 +126,9 @@ export const getCoupleHistory = cache(async (coupleId: string, monthlyBudget = 0
   const months = lastMonthsMeta(count)
   const start = `${months[0].key}-01`
 
-  const { data } = await db.from('expenses').select('amount, date, is_income').eq('couple_id', coupleId).gte('date', start)
+  const { data } = await db.from('expenses').select('amount, date, is_income, created_by').eq('couple_id', coupleId).gte('date', start)
 
-  const expByMonth = new Map<string, { amount: number; is_income: boolean }[]>()
+  const expByMonth = new Map<string, { amount: number; is_income: boolean; created_by: string | null }[]>()
   for (const e of data ?? []) {
     const key = e.date.slice(0, 7)
     if (!expByMonth.has(key)) expByMonth.set(key, [])
@@ -121,7 +136,8 @@ export const getCoupleHistory = cache(async (coupleId: string, monthlyBudget = 0
   }
 
   return months.map((m) => {
-    const { spent, income } = movementTotals(expByMonth.get(m.key) ?? [])
-    return { ...m, spent, income, fondo: monthlyBudget + income }
+    const rows = expByMonth.get(m.key) ?? []
+    const { spent, income } = movementTotals(rows)
+    return { ...m, spent, income, budget: monthlyBudget, fondo: monthlyBudget + income, byPerson: contributionTotals(rows) }
   })
 })
