@@ -1,6 +1,6 @@
 import BottomNav from '@/components/BottomNav'
 import { getCurrentUser, getIndividualExpenses, getCoupleData, getIndividualHistory, getCoupleHistory, verifySession } from '@/lib/dal'
-import { movementTotals, categoryTotals } from '@/lib/totals'
+import { movementTotals, categoryTotals, contributionTotals } from '@/lib/totals'
 import { formatUYU } from '@/lib/format'
 import { getCategoryIcon, getCategoryLabel } from '@/lib/categories'
 import { redirect } from 'next/navigation'
@@ -34,6 +34,49 @@ function CategoryCard({ title, rows }: { title: string; rows: { category: string
               </div>
             </div>
           ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
+function ContributionCard({
+  members,
+  expenses,
+}: {
+  members: { id: string; name: string }[]
+  expenses: { amount: number; is_income: boolean; created_by: string | null }[]
+}) {
+  const totals = contributionTotals(expenses)
+  const rows = members.map((m) => ({ key: m.id, name: m.name, total: totals.get(m.id) ?? 0 }))
+  const unassigned = totals.get(null)
+  if (unassigned) rows.push({ key: 'sin-asignar', name: 'Sin asignar', total: unassigned })
+  const sum = rows.reduce((s, r) => s + r.total, 0)
+
+  return (
+    <div className="bg-gray-900 rounded-2xl p-5">
+      <div className="flex justify-between items-baseline mb-4">
+        <h2 className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Pareja · gasto por persona</h2>
+        {sum > 0 && <span className="text-xs text-gray-500">Total {formatUYU(sum)}</span>}
+      </div>
+      {sum === 0 ? (
+        <p className="text-sm text-gray-600 text-center py-2">Sin gastos este mes</p>
+      ) : (
+        <div className="flex flex-col gap-3">
+          {rows.map((r) => {
+            const pct = (r.total / sum) * 100
+            return (
+              <div key={r.key}>
+                <div className="flex justify-between text-sm mb-1">
+                  <span className="text-gray-300">{r.name}</span>
+                  <span className="text-white font-semibold">
+                    {formatUYU(r.total)} <span className="text-gray-500 font-normal">· {Math.round(pct)}%</span>
+                  </span>
+                </div>
+                <Bar pct={pct} color="bg-sky-500" />
+              </div>
+            )
+          })}
         </div>
       )}
     </div>
@@ -107,6 +150,7 @@ export default async function MetricasPage() {
           {/* Por categoría */}
           <CategoryCard title="Por categoría · Yo" rows={categoryTotals(expenses)} />
           {coupleData && <CategoryCard title="Por categoría · Pareja" rows={categoryTotals(coupleData.expenses)} />}
+          {coupleData && <ContributionCard members={coupleData.members} expenses={coupleData.expenses} />}
 
           {/* Últimos 6 meses — individual */}
           <div className="bg-gray-900 rounded-2xl p-5">
@@ -133,7 +177,7 @@ export default async function MetricasPage() {
           {/* Últimos 6 meses — pareja */}
           {coupleHistory && (
             <div className="bg-gray-900 rounded-2xl p-5">
-              <h2 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-4">Pareja · fondo vs gastado</h2>
+              <h2 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-4">Pareja · presupuesto vs gastado</h2>
               <div className="flex flex-col gap-4">
                 {coupleHistory.map((m) => (
                   <div key={m.key}>
@@ -145,11 +189,29 @@ export default async function MetricasPage() {
                       <Bar pct={(m.spent / maxPareja) * 100} color="bg-rose-500" />
                     </div>
                     <p className="text-xs text-gray-600 mt-1.5">
-                      Fondo {formatUYU(m.fondo)} · Gastado {formatUYU(m.spent)} · Ahorro{' '}
+                      Presupuesto {formatUYU(m.budget)}
+                      {m.income > 0 && <> + ingresos {formatUYU(m.income)}</>}
+                      {' '}· Gastado {formatUYU(m.spent)}
+                      {m.budget > 0 && (
+                        <span className={m.spent > m.budget ? 'text-red-400' : 'text-gray-500'}>
+                          {' '}({Math.round((m.spent / m.budget) * 100)}% del presupuesto)
+                        </span>
+                      )}
+                      {' '}· Ahorro{' '}
                       <span className={m.fondo - m.spent >= 0 ? 'text-emerald-400' : 'text-red-400'}>
                         {formatUYU(m.fondo - m.spent)}
                       </span>
                     </p>
+                    {m.spent > 0 && (
+                      <p className="text-xs text-gray-500 mt-0.5">
+                        {[
+                          ...(coupleData?.members ?? []).map((p) => ({ name: p.name, total: m.byPerson.get(p.id) ?? 0 })),
+                          ...(m.byPerson.get(null) ? [{ name: 'Sin asignar', total: m.byPerson.get(null)! }] : []),
+                        ]
+                          .map((p) => `${p.name} ${formatUYU(p.total)} (${Math.round((p.total / m.spent) * 100)}%)`)
+                          .join(' · ')}
+                      </p>
+                    )}
                   </div>
                 ))}
               </div>

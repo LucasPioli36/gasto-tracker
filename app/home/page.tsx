@@ -28,9 +28,9 @@ export default async function HomePage() {
   const disponible = limiteGasto - totalGastado
 
   const coupleData = session.coupleId ? await getCoupleData(session.coupleId) : null
-  const totalDepositado = coupleData?.deposits.reduce((s, d) => s + d.amount, 0) ?? 0
   const { spent: totalGastadoPareja, income: totalIngresosPareja } = movementTotals(coupleData?.expenses ?? [])
-  const fondoPareja = totalDepositado + totalIngresosPareja
+  const presupuestoPareja = coupleData?.couple?.monthly_budget ?? 0
+  const fondoPareja = presupuestoPareja + totalIngresosPareja
   const disponiblePareja = fondoPareja - totalGastadoPareja
 
   return (
@@ -93,21 +93,17 @@ export default async function HomePage() {
 
           <div>
             <p className="text-gray-400 text-xs mb-1">Disponible</p>
-            <p className={`text-3xl font-bold ${disponiblePareja < 0 ? 'text-red-400' : disponiblePareja < (coupleData.couple?.monthly_budget ?? 0) * 0.2 ? 'text-amber-400' : 'text-emerald-400'}`}>
+            <p className={`text-3xl font-bold ${disponiblePareja < 0 ? 'text-red-400' : disponiblePareja < fondoPareja * 0.2 ? 'text-amber-400' : 'text-emerald-400'}`}>
               {formatUYU(disponiblePareja)}
             </p>
           </div>
 
-          <ProgressBar value={totalGastadoPareja} max={fondoPareja > 0 ? fondoPareja : (coupleData.couple?.monthly_budget ?? 1)} />
+          <ProgressBar value={totalGastadoPareja} max={fondoPareja || 1} />
 
-          <div className="grid grid-cols-4 gap-2 text-center">
+          <div className="grid grid-cols-3 gap-2 text-center">
             <div>
               <p className="text-xs text-gray-600">Presupuesto</p>
-              <p className="text-sm font-semibold text-white">{formatUYU(coupleData.couple?.monthly_budget ?? 0)}</p>
-            </div>
-            <div>
-              <p className="text-xs text-gray-600">Depositado</p>
-              <p className="text-sm font-semibold text-emerald-400">{formatUYU(totalDepositado)}</p>
+              <p className="text-sm font-semibold text-white">{formatUYU(presupuestoPareja)}</p>
             </div>
             <div>
               <p className="text-xs text-gray-600">Ingresos</p>
