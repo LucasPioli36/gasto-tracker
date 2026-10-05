@@ -95,7 +95,7 @@ export default async function MetricasPage() {
   const expenses = await getIndividualExpenses(user.id)
   const coupleData = session.coupleId ? await getCoupleData(session.coupleId) : null
   const individualHistory = await getIndividualHistory(user.id)
-  const coupleHistory = session.coupleId ? await getCoupleHistory(session.coupleId) : null
+  const coupleHistory = session.coupleId ? await getCoupleHistory(session.coupleId, coupleData?.couple?.monthly_budget ?? 0) : null
 
   // Ritmo del mes
   const { spent: gastado, income: ingresos } = movementTotals(expenses)

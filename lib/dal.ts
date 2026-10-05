@@ -53,7 +53,7 @@ export const getIndividualExpenses = cache(async (userId: string) => {
 })
 
 export const getCoupleData = cache(async (coupleId: string): Promise<{
-  couple: { id: string; user1_id: string; user2_id: string; monthly_budget: number } | null
+  couple: { id: string; user1_id: string; user2_id: string; monthly_budget: number; user1_name: string; user2_name: string } | null
   expenses: { id: string; amount: number; category: string; description: string | null; date: string; user_id: string | null; couple_id: string | null; created_by: string | null; created_at: string; is_income: boolean; createdByName: string | null }[]
   members: { id: string; name: string }[]
 }> => {
@@ -67,10 +67,9 @@ export const getCoupleData = cache(async (coupleId: string): Promise<{
       .order('created_at', { ascending: false }),
   ])
 
-  const couple = coupleRes.data as { id: string; user1_id: string; user2_id: string; monthly_budget: number } | null
+  const couple = coupleRes.data as { id: string; user1_id: string; user2_id: string; monthly_budget: number; user1_name: string; user2_name: string } | null
   const rawExpenses = (expensesRes.data ?? []) as { id: string; amount: number; category: string; description: string | null; date: string; user_id: string | null; couple_id: string | null; created_by: string | null; created_at: string; is_income: boolean }[]
 
-  // Fetch names for the two couple members in one query
   let nameMap: Record<string, string> = {}
   if (couple) {
     const { data: users } = await db
@@ -81,7 +80,7 @@ export const getCoupleData = cache(async (coupleId: string): Promise<{
   }
 
   return {
-    couple,
+    couple: couple ? { ...couple, user1_name: nameMap[couple.user1_id] ?? '', user2_name: nameMap[couple.user2_id] ?? '' } : null,
     expenses: rawExpenses.map((e) => ({
       ...e,
       createdByName: e.created_by ? (nameMap[e.created_by] ?? null) : null,
@@ -123,19 +122,14 @@ export const getIndividualHistory = cache(async (userId: string, count = 6) => {
   return months.map((m) => ({ ...m, ...movementTotals(byMonth.get(m.key) ?? []) }))
 })
 
-export const getCoupleHistory = cache(async (coupleId: string, count = 6) => {
+export const getCoupleHistory = cache(async (coupleId: string, monthlyBudget = 0, count = 6) => {
   const months = lastMonthsMeta(count)
   const start = `${months[0].key}-01`
 
-  const [expRes, coupleRes] = await Promise.all([
-    db.from('expenses').select('amount, date, is_income, created_by').eq('couple_id', coupleId).gte('date', start),
-    db.from('couple').select('monthly_budget').eq('id', coupleId).single(),
-  ])
-  // Un solo presupuesto vigente (sin historia por mes): se aplica a todos los meses.
-  const budget = coupleRes.data?.monthly_budget ?? 0
+  const { data } = await db.from('expenses').select('amount, date, is_income, created_by').eq('couple_id', coupleId).gte('date', start)
 
   const expByMonth = new Map<string, { amount: number; is_income: boolean; created_by: string | null }[]>()
-  for (const e of expRes.data ?? []) {
+  for (const e of data ?? []) {
     const key = e.date.slice(0, 7)
     if (!expByMonth.has(key)) expByMonth.set(key, [])
     expByMonth.get(key)!.push(e)
@@ -144,6 +138,6 @@ export const getCoupleHistory = cache(async (coupleId: string, count = 6) => {
   return months.map((m) => {
     const rows = expByMonth.get(m.key) ?? []
     const { spent, income } = movementTotals(rows)
-    return { ...m, spent, income, budget, fondo: budget + income, byPerson: contributionTotals(rows) }
+    return { ...m, spent, income, budget: monthlyBudget, fondo: monthlyBudget + income, byPerson: contributionTotals(rows) }
   })
 })

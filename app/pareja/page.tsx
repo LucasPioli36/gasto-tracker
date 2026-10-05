@@ -4,6 +4,11 @@ import BottomNav from '@/components/BottomNav'
 import { getCoupleData, verifySession } from '@/lib/dal'
 import { movementTotals } from '@/lib/totals'
 
+const PERSON_TARGETS: Record<string, number> = {
+  'Lucas': 48389,
+  'Emi': 17330,
+}
+
 function formatUYU(amount: number) {
   return new Intl.NumberFormat('es-UY', {
     style: 'currency',
@@ -49,11 +54,31 @@ export default async function ParejaPage() {
   }
 
   const { couple, expenses } = await getCoupleData(session.coupleId)
-  const { spent: totalGastado, income: totalIngresos } = movementTotals(expenses)
   const presupuesto = couple?.monthly_budget ?? 0
+  const { spent: totalGastado, income: totalIngresos } = movementTotals(expenses)
   const fondo = presupuesto + totalIngresos
   const disponible = fondo - totalGastado
+
+  const payerTotals = expenses
+    .filter(e => !e.is_income)
+    .reduce((acc, e) => {
+      const name = e.createdByName ?? 'Alguien'
+      acc[name] = (acc[name] ?? 0) + e.amount
+      return acc
+    }, {} as Record<string, number>)
+  const payerEntries = Object.entries(payerTotals).sort(([, a], [, b]) => b - a)
+
   const grouped = groupByDate(expenses)
+
+  const spentByPerson: Record<string, number> = {}
+  for (const e of expenses) {
+    if (!e.is_income && e.createdByName) {
+      spentByPerson[e.createdByName] = (spentByPerson[e.createdByName] ?? 0) + e.amount
+    }
+  }
+  const members = couple
+    ? [{ name: couple.user1_name }, { name: couple.user2_name }].filter((m) => m.name && PERSON_TARGETS[m.name] !== undefined)
+    : []
 
   return (
     <div className="min-h-screen bg-gray-950">
@@ -65,11 +90,11 @@ export default async function ParejaPage() {
           <div className="bg-gray-900 rounded-2xl p-5 flex flex-col gap-4">
             <div>
               <p className="text-gray-400 text-xs mb-1">Disponible este mes</p>
-              <p className={`text-3xl font-bold ${disponible < 0 ? 'text-red-400' : disponible < fondo * 0.2 ? 'text-amber-400' : 'text-emerald-400'}`}>
+              <p className={`text-3xl font-bold ${disponible < 0 ? 'text-red-400' : disponible < presupuesto * 0.2 ? 'text-amber-400' : 'text-emerald-400'}`}>
                 {formatUYU(disponible)}
               </p>
             </div>
-            <ProgressBar value={totalGastado} max={fondo || 1} />
+            <ProgressBar value={totalGastado} max={fondo > 0 ? fondo : presupuesto || 1} />
             <div className="grid grid-cols-3 gap-2 text-center">
               <div>
                 <p className="text-xs text-gray-600">Presupuesto</p>
@@ -85,6 +110,39 @@ export default async function ParejaPage() {
               </div>
             </div>
           </div>
+
+          {/* Per-person spending targets */}
+          {members.length > 0 && (
+            <div className="bg-gray-900 rounded-2xl p-4 flex flex-col gap-3">
+              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Gasto por persona</p>
+              {members.map(({ name }) => {
+                const spent = spentByPerson[name] ?? 0
+                const target = PERSON_TARGETS[name]
+                const pct = Math.min(Math.round((spent / target) * 100), 999)
+                const color = pct >= 100 ? 'text-red-400' : pct >= 50 ? 'text-amber-400' : 'text-emerald-400'
+                return (
+                  <div key={name} className="flex items-center justify-between gap-2">
+                    <span className="text-sm text-gray-300 w-16 shrink-0">{name}</span>
+                    <span className="text-sm text-white">{formatUYU(spent)} / {formatUYU(target)}</span>
+                    <span className={`text-sm font-semibold ${color} w-12 text-right shrink-0`}>{pct}%</span>
+                  </div>
+                )
+              })}
+            </div>
+          )}
+
+          {/* Who paid what this month */}
+          {payerEntries.length > 0 && (
+            <div className="bg-gray-900 rounded-2xl p-4 flex flex-col gap-2">
+              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Pagado este mes</p>
+              {payerEntries.map(([name, amount]) => (
+                <div key={name} className="flex justify-between items-center py-1">
+                  <span className="text-sm text-gray-300">{name}</span>
+                  <span className="text-sm font-semibold text-white">{formatUYU(amount)}</span>
+                </div>
+              ))}
+            </div>
+          )}
 
           {/* Expense list */}
           {grouped.length === 0 ? (
