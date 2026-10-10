@@ -1,8 +1,9 @@
 import ProgressBar from '@/components/ProgressBar'
 import ExpenseItem from '@/components/ExpenseItem'
 import BottomNav from '@/components/BottomNav'
+import ApartadoRow from '@/components/ApartadoRow'
 import { getCoupleData, verifySession } from '@/lib/dal'
-import { movementTotals } from '@/lib/totals'
+import { movementTotals, isDailyExpense } from '@/lib/totals'
 
 const PERSON_TARGETS: Record<string, number> = {
   'Lucas': 48389,
@@ -55,12 +56,12 @@ export default async function ParejaPage() {
 
   const { couple, expenses } = await getCoupleData(session.coupleId)
   const presupuesto = couple?.monthly_budget ?? 0
-  const { spent: totalGastado, income: totalIngresos } = movementTotals(expenses)
+  const { spent: totalGastado, income: totalIngresos, saved: totalAhorro, extra: totalViajes } = movementTotals(expenses)
   const fondo = presupuesto + totalIngresos
   const disponible = fondo - totalGastado
 
   const payerTotals = expenses
-    .filter(e => !e.is_income)
+    .filter(isDailyExpense)
     .reduce((acc, e) => {
       const name = e.createdByName ?? 'Alguien'
       acc[name] = (acc[name] ?? 0) + e.amount
@@ -72,7 +73,7 @@ export default async function ParejaPage() {
 
   const spentByPerson: Record<string, number> = {}
   for (const e of expenses) {
-    if (!e.is_income && e.createdByName) {
+    if (isDailyExpense(e) && e.createdByName) {
       spentByPerson[e.createdByName] = (spentByPerson[e.createdByName] ?? 0) + e.amount
     }
   }
@@ -109,6 +110,7 @@ export default async function ParejaPage() {
                 <p className="text-sm font-semibold text-white">{formatUYU(totalGastado)}</p>
               </div>
             </div>
+            <ApartadoRow ahorro={totalAhorro} viajes={totalViajes} />
           </div>
 
           {/* Per-person spending targets */}
