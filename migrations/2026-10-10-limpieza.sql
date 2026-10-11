@@ -11,7 +11,7 @@ CREATE TABLE expenses_respaldo_20261010 AS SELECT * FROM expenses;
 -- 1. Duplicados individuales: el mismo gasto cargado en Yo y en Pareja
 --    (mismo usuario, fecha y monto). Se borra la copia individual; la de pareja queda.
 DELETE FROM expenses WHERE user_id IS NOT NULL AND id IN (
-  -- Lucas (9)
+  -- Lucas (10)
   '9eab85a9-f276-421f-9a35-63e7c00d5e4f', -- 2026-08-02  31964 Alquiler
   '1ba482f5-8183-48c4-8548-a539ad6c3b8d', -- 2026-08-02   8345 Surtido
   '8396ea84-44a2-47a2-ba3e-8fe5ac0493a3', -- 2026-08-02    500 Depósito de pareja
@@ -21,14 +21,13 @@ DELETE FROM expenses WHERE user_id IS NOT NULL AND id IN (
   'f601baab-b0dd-47d1-9bc7-073d9d442806', -- 2026-09-01  31964 Alquiler
   '015f7346-fd42-492e-bd44-70c219917847', -- 2026-09-03    877 (sin descripción)
   'f053afef-82d1-44be-b13d-4e7031e6d6e6', -- 2026-09-12   1032 (sin descripción) = Picada primavera
-  -- Emi (4)
+  '81b9bdb5-e93b-467f-853a-4597064fe301', -- 2026-07-07  31964 Alquiler (el de Pareja es del 07-10)
+  -- Emi (5)
   '8f1b610a-e99a-4634-8998-bbc96d2a4adc', -- 2026-09-09   4328 Pago de luz = Ute
   '75125f61-1e87-4915-b5e9-f9a413b50c61', -- 2026-09-09   1650 Internet
   'f166625f-d408-46bc-8659-406bb0f6a920', -- 2026-09-09    774 Saneamiento
-  'c1b451cc-d18d-4f34-af66-435aae907aca'  -- 2026-09-09   1491 Super
-  -- REVISAR antes de sumar a la lista (no parecen el mismo gasto):
-  -- '0e2498ca-1e00-4bb4-8075-c2021ada625e', -- Emi 2026-09-30 880 "Asociación de escribanos" (empresa) vs Pareja "Gloria"
-  -- '81b9bdb5-e93b-467f-853a-4597064fe301', -- Lucas 2026-07-07 31964 Alquiler; el de Pareja es del 07-10 (sin asignar)
+  'c1b451cc-d18d-4f34-af66-435aae907aca', -- 2026-09-09   1491 Super
+  '0e2498ca-1e00-4bb4-8075-c2021ada625e'  -- 2026-09-30    880 Asociación de escribanos = Gloria
 );
 
 -- 2. Lo que no es gasto pasa a Ahorro (no cuenta en el límite).
@@ -68,7 +67,7 @@ ALTER TABLE expenses
 -- 7. couple_deposits ya no se usa, pero tiene 20 filas (jul–sep): se archiva en vez de borrarla.
 ALTER TABLE couple_deposits RENAME TO couple_deposits_archivo_20261010;
 
--- Chequeo: tiene que dar 13 / 2 / 2 / 0
+-- Chequeo: tiene que dar 15 / 2 / 2 / 0
 SELECT
   (SELECT count(*) FROM expenses_respaldo_20261010)
     - (SELECT count(*) FROM expenses)                                   AS borradas,
