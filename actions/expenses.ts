@@ -3,6 +3,7 @@ import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 import { verifySession } from '@/lib/dal'
 import { db } from '@/lib/db'
+import { MAX_INSTALLMENTS, installmentDescription, splitInstallments } from '@/lib/installments'
 
 export type ExpenseFormState = {
   error?: string
@@ -23,6 +24,7 @@ function parseForm(formData: FormData) {
     isIncome,
     paidBy: (formData.get('paid_by') as string) || null,
     confirmDuplicate: formData.get('confirm_duplicate') === '1',
+    installments: isIncome ? 1 : Number(formData.get('installments') ?? 1),
   }
 }
 
@@ -30,6 +32,9 @@ function validate(f: ReturnType<typeof parseForm>): string | null {
   if (!f.amount || f.amount <= 0) return 'Ingresá un monto válido'
   if (!f.isIncome && !f.category) return 'Elegí una categoría'
   if (!f.isIncome && f.category === 'otros' && !f.description) return 'En "Otros" poné una referencia para saber qué fue'
+  if (!Number.isInteger(f.installments) || f.installments < 1 || f.installments > MAX_INSTALLMENTS) {
+    return `Las cuotas tienen que ser entre 1 y ${MAX_INSTALLMENTS}`
+  }
   return null
 }
 
@@ -72,8 +77,17 @@ export async function addExpense(prevState: ExpenseFormState, formData: FormData
   if (invalid) return { error: invalid }
   if (f.tipo === 'pareja' && !session.coupleId) return { error: 'No tenés una cuenta de pareja configurada' }
 
+  // En cuotas, el monto ingresado es el total; se guarda una fila por mes.
+  const cuotas = f.installments > 1
+    ? splitInstallments(f.amount, f.installments, f.date).map((c) => ({
+        amount: c.amount,
+        date: c.date,
+        description: installmentDescription(f.description, c.number, f.installments),
+      }))
+    : [{ amount: f.amount, date: f.date, description: f.description }]
+
   if (!f.isIncome && !f.confirmDuplicate) {
-    const duplicate = await findCrossScopeDuplicate(session.userId, session.coupleId, f.tipo, f.date, f.amount)
+    const duplicate = await findCrossScopeDuplicate(session.userId, session.coupleId, f.tipo, cuotas[0].date, cuotas[0].amount)
     if (duplicate) return { duplicate }
   }
 
@@ -81,14 +95,13 @@ export async function addExpense(prevState: ExpenseFormState, formData: FormData
     ? { couple_id: session.coupleId as string, created_by: session.userId }
     : { user_id: session.userId }
 
-  const { error } = await db.from('expenses').insert({
+  // Un solo INSERT con todas las filas: o se guardan todas las cuotas o ninguna.
+  const { error } = await db.from('expenses').insert(cuotas.map((c) => ({
     ...owner,
-    amount: f.amount,
+    ...c,
     category: f.category,
-    description: f.description,
-    date: f.date,
     is_income: f.isIncome,
-  })
+  })))
   if (error) return { error: 'Error al guardar. Intentá de nuevo.' }
 
   revalidateAll()
