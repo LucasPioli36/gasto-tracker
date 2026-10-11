@@ -1,4 +1,5 @@
--- Ejecutar esto en el SQL Editor de Supabase
+-- Esquema actual de la base (Supabase). Para crearla de cero: correr en el SQL Editor.
+-- Los cambios sobre la base existente van en migrations/.
 
 CREATE TABLE users (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
@@ -18,26 +19,23 @@ CREATE TABLE couple (
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
+-- Un movimiento es individual (user_id) o de pareja (couple_id + created_by = quién lo cargó/pagó).
+-- category: ver lib/categories.ts ('ahorro' y 'viajes' no cuentan como gasto del día a día).
 CREATE TABLE expenses (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   user_id UUID REFERENCES users(id),
   couple_id UUID REFERENCES couple(id),
+  created_by UUID REFERENCES users(id),
   amount DECIMAL(12,2) NOT NULL,
   category TEXT NOT NULL,
   description TEXT,
   date DATE DEFAULT CURRENT_DATE,
+  is_income BOOLEAN NOT NULL DEFAULT FALSE,
+  is_investment BOOLEAN DEFAULT FALSE, -- existe en la base, la app no lo usa
   created_at TIMESTAMPTZ DEFAULT NOW(),
   CONSTRAINT expense_owner CHECK (
     (user_id IS NOT NULL AND couple_id IS NULL) OR
     (user_id IS NULL AND couple_id IS NOT NULL)
-  )
-);
-
-CREATE TABLE couple_deposits (
-  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-  couple_id UUID REFERENCES couple(id) NOT NULL,
-  user_id UUID REFERENCES users(id) NOT NULL,
-  amount DECIMAL(12,2) NOT NULL,
-  date DATE DEFAULT CURRENT_DATE,
-  created_at TIMESTAMPTZ DEFAULT NOW()
+  ),
+  CONSTRAINT couple_expense_has_creator CHECK (couple_id IS NULL OR created_by IS NOT NULL)
 );

@@ -108,11 +108,11 @@ export const getIndividualHistory = cache(async (userId: string, count = 6) => {
   const months = lastMonthsMeta(count)
   const { data } = await db
     .from('expenses')
-    .select('amount, date, is_income, couple_id')
+    .select('amount, date, is_income, couple_id, category')
     .or(ownMovementsFilter(userId))
     .gte('date', `${months[0].key}-01`)
 
-  const byMonth = new Map<string, { amount: number; is_income: boolean }[]>()
+  const byMonth = new Map<string, { amount: number; is_income: boolean; category: string }[]>()
   for (const e of (data ?? []).filter(isOwnMovement)) {
     const key = e.date.slice(0, 7)
     if (!byMonth.has(key)) byMonth.set(key, [])
@@ -126,9 +126,9 @@ export const getCoupleHistory = cache(async (coupleId: string, monthlyBudget = 0
   const months = lastMonthsMeta(count)
   const start = `${months[0].key}-01`
 
-  const { data } = await db.from('expenses').select('amount, date, is_income, created_by').eq('couple_id', coupleId).gte('date', start)
+  const { data } = await db.from('expenses').select('amount, date, is_income, created_by, category').eq('couple_id', coupleId).gte('date', start)
 
-  const expByMonth = new Map<string, { amount: number; is_income: boolean; created_by: string | null }[]>()
+  const expByMonth = new Map<string, { amount: number; is_income: boolean; created_by: string | null; category: string }[]>()
   for (const e of data ?? []) {
     const key = e.date.slice(0, 7)
     if (!expByMonth.has(key)) expByMonth.set(key, [])
@@ -137,7 +137,28 @@ export const getCoupleHistory = cache(async (coupleId: string, monthlyBudget = 0
 
   return months.map((m) => {
     const rows = expByMonth.get(m.key) ?? []
-    const { spent, income } = movementTotals(rows)
-    return { ...m, spent, income, budget: monthlyBudget, fondo: monthlyBudget + income, byPerson: contributionTotals(rows) }
+    const { spent, income, extra } = movementTotals(rows)
+    return { ...m, spent, income, extra, budget: monthlyBudget, fondo: monthlyBudget + income, byPerson: contributionTotals(rows) }
   })
+})
+
+// Referencias usadas recientemente (mías y de la pareja), para autocompletar al cargar.
+export const getRecentDescriptions = cache(async (userId: string, coupleId: string | null) => {
+  const filter = coupleId ? `${ownMovementsFilter(userId)},couple_id.eq.${coupleId}` : ownMovementsFilter(userId)
+  const { data } = await db
+    .from('expenses')
+    .select('description')
+    .or(filter)
+    .not('description', 'is', null)
+    .order('created_at', { ascending: false })
+    .limit(200)
+  return [...new Set((data ?? []).map((r) => r.description!.trim()).filter(Boolean))].slice(0, 50)
+})
+
+export const getExpenseForEdit = cache(async (id: string) => {
+  const session = await verifySession()
+  const { data } = await db.from('expenses').select('*').eq('id', id).single()
+  if (!data) return null
+  const canEdit = data.couple_id ? data.couple_id === session.coupleId : data.user_id === session.userId
+  return canEdit ? data : null
 })

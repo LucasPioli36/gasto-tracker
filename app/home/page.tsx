@@ -1,6 +1,7 @@
 import { redirect } from 'next/navigation'
 import { logout } from '@/actions/auth'
 import ProgressBar from '@/components/ProgressBar'
+import ApartadoRow from '@/components/ApartadoRow'
 import { getCurrentUser, getIndividualExpenses, getCoupleData, verifySession } from '@/lib/dal'
 import { movementTotals } from '@/lib/totals'
 
@@ -23,12 +24,12 @@ export default async function HomePage() {
   if (!user) redirect('/login')
 
   const expenses = await getIndividualExpenses(user.id)
-  const { spent: totalGastado, income: totalIngresos } = movementTotals(expenses)
+  const { spent: totalGastado, income: totalIngresos, saved: totalAhorro, extra: totalViajes } = movementTotals(expenses)
   const limiteGasto = user.salary + totalIngresos - user.savings_goal
   const disponible = limiteGasto - totalGastado
 
   const coupleData = session.coupleId ? await getCoupleData(session.coupleId) : null
-  const { spent: totalGastadoPareja, income: totalIngresosPareja } = movementTotals(coupleData?.expenses ?? [])
+  const { spent: totalGastadoPareja, income: totalIngresosPareja, saved: totalAhorroPareja, extra: totalViajesPareja } = movementTotals(coupleData?.expenses ?? [])
   const presupuestoPareja = coupleData?.couple?.monthly_budget ?? 0
   const fondoPareja = presupuestoPareja + totalIngresosPareja
   const disponiblePareja = fondoPareja - totalGastadoPareja
@@ -81,6 +82,7 @@ export default async function HomePage() {
             <p className="text-sm font-semibold text-white">{formatUYU(totalGastado)}</p>
           </div>
         </div>
+        <ApartadoRow ahorro={totalAhorro} viajes={totalViajes} metaAhorro={user.savings_goal} />
       </div>
 
       {/* Couple card */}
@@ -114,6 +116,7 @@ export default async function HomePage() {
               <p className="text-sm font-semibold text-white">{formatUYU(totalGastadoPareja)}</p>
             </div>
           </div>
+          <ApartadoRow ahorro={totalAhorroPareja} viajes={totalViajesPareja} />
         </div>
       ) : (
         <div className="bg-gray-900 rounded-2xl p-5 text-center text-gray-600 text-sm">

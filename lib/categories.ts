@@ -16,6 +16,8 @@ export const CATEGORIES = [
   { id: 'estacion', label: 'Estación', icon: '⛽' },
   { id: 'pedidosya', label: 'PedidosYa', icon: '🛵' },
   { id: 'otros', label: 'Otros', icon: '📦' },
+  { id: 'ahorro', label: 'Ahorro', icon: '🐷', kind: 'ahorro' },
+  { id: 'viajes', label: 'Viajes', icon: '✈️', kind: 'extraordinario' },
 ] as const
 
 export type CategoryId = (typeof CATEGORIES)[number]['id']
@@ -26,4 +28,14 @@ export function getCategoryLabel(id: string) {
 
 export function getCategoryIcon(id: string) {
   return CATEGORIES.find((c) => c.id === id)?.icon ?? '📦'
+}
+
+// 'gasto' = día a día (cuenta para el límite y el ritmo del mes).
+// 'ahorro' = plata que se aparta, no es gasto.
+// 'extraordinario' = gasto real pero fuera del día a día (viajes).
+export type CategoryKind = 'gasto' | 'ahorro' | 'extraordinario'
+
+export function getCategoryKind(id: string): CategoryKind {
+  const c = CATEGORIES.find((c) => c.id === id)
+  return c && 'kind' in c ? c.kind : 'gasto'
 }

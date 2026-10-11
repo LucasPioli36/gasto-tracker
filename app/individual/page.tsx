@@ -1,6 +1,7 @@
 import ProgressBar from '@/components/ProgressBar'
 import ExpenseItem from '@/components/ExpenseItem'
 import BottomNav from '@/components/BottomNav'
+import ApartadoRow from '@/components/ApartadoRow'
 import { getCurrentUser, getIndividualExpenses } from '@/lib/dal'
 import { movementTotals } from '@/lib/totals'
 import { redirect } from 'next/navigation'
@@ -40,7 +41,7 @@ export default async function IndividualPage() {
   if (!user) redirect('/login')
 
   const expenses = await getIndividualExpenses(user.id)
-  const { spent: totalGastado, income: totalIngresos } = movementTotals(expenses)
+  const { spent: totalGastado, income: totalIngresos, saved: totalAhorro, extra: totalViajes } = movementTotals(expenses)
   const limiteGasto = user.salary + totalIngresos - user.savings_goal
   const disponible = limiteGasto - totalGastado
   const grouped = groupByDate(expenses)
@@ -78,6 +79,7 @@ export default async function IndividualPage() {
                 <p className="text-sm font-semibold text-emerald-400">{formatUYU(user.savings_goal)}</p>
               </div>
             </div>
+            <ApartadoRow ahorro={totalAhorro} viajes={totalViajes} metaAhorro={user.savings_goal} />
           </div>
 
           {/* Expense list */}

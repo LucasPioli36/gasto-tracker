@@ -45,7 +45,7 @@ function ContributionCard({
   expenses,
 }: {
   members: { id: string; name: string }[]
-  expenses: { amount: number; is_income: boolean; created_by: string | null }[]
+  expenses: { amount: number; is_income: boolean; category: string; created_by: string | null }[]
 }) {
   const totals = contributionTotals(expenses)
   const rows = members.map((m) => ({ key: m.id, name: m.name, total: totals.get(m.id) ?? 0 }))
@@ -197,6 +197,7 @@ export default async function MetricasPage() {
                           {' '}({Math.round((m.spent / m.budget) * 100)}% del presupuesto)
                         </span>
                       )}
+                      {m.extra > 0 && <> · Viajes {formatUYU(m.extra)}</>}
                       {' '}· Ahorro{' '}
                       <span className={m.fondo - m.spent >= 0 ? 'text-emerald-400' : 'text-red-400'}>
                         {formatUYU(m.fondo - m.spent)}

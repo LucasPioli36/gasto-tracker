@@ -1,5 +1,6 @@
 'use client'
-import { Trash2 } from 'lucide-react'
+import Link from 'next/link'
+import { Pencil, Trash2 } from 'lucide-react'
 import { useTransition } from 'react'
 import { deleteExpense } from '@/actions/expenses'
 import { getCategoryIcon, getCategoryLabel } from '@/lib/categories'
@@ -36,12 +37,16 @@ export default function ExpenseItem({ id, amount, category, description, date, i
           {shared && <span className="text-gray-600"> · Pareja</span>}
         </p>
       </div>
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-2">
         <span className={`text-sm font-semibold ${is_income ? 'text-emerald-400' : 'text-white'}`}>
           {is_income ? '+' : ''}{formatUYU(amount)}
         </span>
+        <Link href={`/editar/${id}`} className="text-gray-700 hover:text-emerald-400 transition-colors p-1" aria-label="Editar">
+          <Pencil size={16} />
+        </Link>
         <button
           onClick={handleDelete}
+          aria-label="Eliminar"
           disabled={isPending}
           className="text-gray-700 hover:text-red-500 transition-colors p-1"
         >
