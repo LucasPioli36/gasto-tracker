@@ -4,6 +4,7 @@ import Link from 'next/link'
 import type { ExpenseFormState } from '@/actions/expenses'
 import { CATEGORIES } from '@/lib/categories'
 import { formatUYU } from '@/lib/format'
+import { MAX_INSTALLMENTS, splitInstallments } from '@/lib/installments'
 
 type Tipo = 'individual' | 'pareja'
 
@@ -35,6 +36,7 @@ export default function ExpenseForm({ action, initial, mode, members = [], sugge
   const [description, setDescription] = useState(initial.description)
   const [date, setDate] = useState(initial.date)
   const [paidBy, setPaidBy] = useState(initial.paidBy ?? '')
+  const [installments, setInstallments] = useState(1)
   const [state, formAction, pending] = useActionState(action, null)
 
   function handleTipoChange(t: boolean) {
@@ -45,6 +47,11 @@ export default function ExpenseForm({ action, initial, mode, members = [], sugge
   const needsDescription = !isIngreso && selectedCategory === 'otros'
   const noun = isIngreso ? 'ingreso' : 'gasto'
   const backHref = tipo === 'pareja' ? '/pareja' : '/individual'
+  // Cuotas: solo al agregar un gasto (al editar se edita una cuota suelta).
+  const canSplit = mode === 'add' && !isIngreso
+  const cuotas = canSplit && installments > 1 && Number(amount) > 0 && date
+    ? splitInstallments(Number(amount), installments, date)
+    : null
 
   return (
     <form action={formAction} className="flex flex-col gap-5">
@@ -52,6 +59,7 @@ export default function ExpenseForm({ action, initial, mode, members = [], sugge
       <input type="hidden" name="category" value={selectedCategory || (isIngreso ? 'otros' : '')} />
       <input type="hidden" name="is_income" value={isIngreso ? '1' : '0'} />
       {mode === 'edit' && tipo === 'pareja' && <input type="hidden" name="paid_by" value={paidBy} />}
+      {canSplit && <input type="hidden" name="installments" value={installments} />}
 
       {/* Gasto / Ingreso switch */}
       <div>
@@ -141,6 +149,48 @@ export default function ExpenseForm({ action, initial, mode, members = [], sugge
         </div>
       </div>
 
+      {/* Cuotas */}
+      {canSplit && (
+        <div>
+          <p className="text-sm text-gray-400 mb-2 font-medium">Cuotas</p>
+          <div className="flex gap-2">
+            {[1, 3, 6, 12].map((n) => (
+              <button
+                key={n}
+                type="button"
+                onClick={() => setInstallments(n)}
+                className={`flex-1 py-2.5 rounded-xl text-sm font-semibold transition-colors ${
+                  installments === n ? 'bg-emerald-600 text-white' : 'bg-gray-900 text-gray-400 hover:bg-gray-800'
+                }`}
+              >
+                {n === 1 ? 'Contado' : n}
+              </button>
+            ))}
+            <input
+              type="number"
+              inputMode="numeric"
+              min={1}
+              max={MAX_INSTALLMENTS}
+              step={1}
+              aria-label="Otra cantidad de cuotas"
+              placeholder="Otra"
+              value={[1, 3, 6, 12].includes(installments) ? '' : installments}
+              onChange={(e) => {
+                const n = Math.trunc(Number(e.target.value))
+                setInstallments(n >= 1 ? Math.min(n, MAX_INSTALLMENTS) : 1)
+              }}
+              className="w-16 bg-gray-900 border border-gray-800 rounded-xl px-2 text-center text-white placeholder-gray-600 focus:outline-none focus:border-emerald-600 text-sm"
+            />
+          </div>
+          {cuotas && (
+            <p className="text-xs text-gray-500 mt-2">
+              {installments} cuotas de {formatUYU(cuotas[0].amount)} · una por mes desde el {formatDay(cuotas[0].date)} hasta el{' '}
+              {formatDay(cuotas[cuotas.length - 1].date)}. Cada mes cuenta solo su cuota.
+            </p>
+          )}
+        </div>
+      )}
+
       {/* Category — solo para gastos */}
       {!isIngreso && (
         <div>
@@ -188,7 +238,7 @@ export default function ExpenseForm({ action, initial, mode, members = [], sugge
 
       {/* Fecha */}
       <div>
-        <p className="text-sm text-gray-400 mb-2 font-medium">Fecha</p>
+        <p className="text-sm text-gray-400 mb-2 font-medium">{installments > 1 && canSplit ? 'Fecha de la primera cuota' : 'Fecha'}</p>
         <input
           name="date"
           type="date"
@@ -205,7 +255,7 @@ export default function ExpenseForm({ action, initial, mode, members = [], sugge
       {state?.duplicate ? (
         <div className="bg-amber-950/40 border border-amber-800/60 rounded-xl p-4 flex flex-col gap-3">
           <p className="text-sm text-amber-200">
-            Ya cargaste {formatUYU(Number(amount))} ese día en {state.duplicate.scope === 'pareja' ? 'Pareja' : 'Yo'}
+            Ya cargaste {formatUYU(cuotas?.[0].amount ?? Number(amount))} ese día en {state.duplicate.scope === 'pareja' ? 'Pareja' : 'Yo'}
             {state.duplicate.description ? ` ("${state.duplicate.description}")` : ''}. ¿Es el mismo gasto?
           </p>
           <div className="flex gap-2">
@@ -231,9 +281,14 @@ export default function ExpenseForm({ action, initial, mode, members = [], sugge
             isIngreso ? 'bg-emerald-600 hover:bg-emerald-500' : 'bg-rose-600 hover:bg-rose-500'
           } disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold rounded-xl py-4 text-base transition-colors mt-2`}
         >
-          {pending ? 'Guardando...' : mode === 'edit' ? 'Guardar cambios' : `Guardar ${noun}`}
+          {pending ? 'Guardando...' : mode === 'edit' ? 'Guardar cambios' : cuotas ? `Guardar ${installments} cuotas` : `Guardar ${noun}`}
         </button>
       )}
     </form>
   )
+}
+
+function formatDay(date: string) {
+  const [y, m, d] = date.split('-').map(Number)
+  return new Date(y, m - 1, d).toLocaleDateString('es-UY', { day: 'numeric', month: 'short', year: '2-digit' })
 }
