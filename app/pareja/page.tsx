@@ -169,7 +169,7 @@ export default async function ParejaPage() {
                         description={e.description as string | null}
                         date={e.date as string}
                         is_income={e.is_income as boolean}
-                        createdBy={e.createdByName as string | null}
+                        createdBy={(e.createdByName as string | null) ?? 'Sin asignar'}
                       />
                     ))}
                   </div>

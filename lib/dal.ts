@@ -141,3 +141,24 @@ export const getCoupleHistory = cache(async (coupleId: string, monthlyBudget = 0
     return { ...m, spent, income, extra, budget: monthlyBudget, fondo: monthlyBudget + income, byPerson: contributionTotals(rows) }
   })
 })
+
+// Referencias usadas recientemente (mías y de la pareja), para autocompletar al cargar.
+export const getRecentDescriptions = cache(async (userId: string, coupleId: string | null) => {
+  const filter = coupleId ? `${ownMovementsFilter(userId)},couple_id.eq.${coupleId}` : ownMovementsFilter(userId)
+  const { data } = await db
+    .from('expenses')
+    .select('description')
+    .or(filter)
+    .not('description', 'is', null)
+    .order('created_at', { ascending: false })
+    .limit(200)
+  return [...new Set((data ?? []).map((r) => r.description!.trim()).filter(Boolean))].slice(0, 50)
+})
+
+export const getExpenseForEdit = cache(async (id: string) => {
+  const session = await verifySession()
+  const { data } = await db.from('expenses').select('*').eq('id', id).single()
+  if (!data) return null
+  const canEdit = data.couple_id ? data.couple_id === session.coupleId : data.user_id === session.userId
+  return canEdit ? data : null
+})

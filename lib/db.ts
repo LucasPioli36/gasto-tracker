@@ -18,13 +18,7 @@ export type Database = {
       expenses: {
         Row: { id: string; user_id: string | null; couple_id: string | null; created_by: string | null; amount: number; category: string; description: string | null; date: string; created_at: string; is_income: boolean }
         Insert: { user_id?: string | null; couple_id?: string | null; created_by?: string | null; amount: number; category: string; description?: string | null; date?: string; is_income?: boolean }
-        Update: { amount?: number; category?: string; description?: string | null; is_income?: boolean }
-        Relationships: []
-      }
-      couple_deposits: {
-        Row: { id: string; couple_id: string; user_id: string; amount: number; date: string; created_at: string }
-        Insert: { couple_id: string; user_id: string; amount: number; date?: string }
-        Update: { amount?: number }
+        Update: { user_id?: string | null; couple_id?: string | null; created_by?: string | null; amount?: number; category?: string; description?: string | null; date?: string; is_income?: boolean }
         Relationships: []
       }
     }
@@ -56,4 +50,3 @@ export const db = new Proxy({} as SupabaseClient<Database>, {
 export type User = Database['public']['Tables']['users']['Row']
 export type Expense = Database['public']['Tables']['expenses']['Row']
 export type Couple = Database['public']['Tables']['couple']['Row']
-export type Deposit = Database['public']['Tables']['couple_deposits']['Row'] & { users?: { name: string } }
