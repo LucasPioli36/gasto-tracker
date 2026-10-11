@@ -1,5 +1,13 @@
 // Un gasto en cuotas se guarda como N filas, una por mes: así cada mes
 // solo cuenta su cuota y todas las métricas (que agrupan por date) siguen igual.
+//
+// TODO: las cuotas no están agrupadas. Cada una es una fila suelta, sin nada que
+// las vincule (solo el texto "· cuota k/n" en la descripción), así que para
+// cambiar la categoría, el monto o la referencia de una compra en cuotas hay que
+// editar cada cuota por separado, y borrar la compra es borrar cada una.
+// Para agruparlas: agregar una columna installment_group UUID a expenses (ALTER
+// TABLE en Supabase, antes del deploy), guardar el mismo valor en todas las cuotas
+// al insertarlas, y que updateExpense/deleteExpense ofrezcan "esta cuota o todas".
 
 export const MAX_INSTALLMENTS = 36
 

@@ -108,6 +108,7 @@ export async function addExpense(prevState: ExpenseFormState, formData: FormData
   redirect(f.tipo === 'pareja' ? '/pareja' : '/individual')
 }
 
+// Edita una sola fila: en una compra en cuotas, solo esa cuota (ver TODO en lib/installments.ts).
 export async function updateExpense(id: string, prevState: ExpenseFormState, formData: FormData): Promise<ExpenseFormState> {
   const session = await verifySession()
   const f = parseForm(formData)
@@ -160,6 +161,7 @@ export async function updateExpense(id: string, prevState: ExpenseFormState, for
   redirect(f.tipo === 'pareja' ? '/pareja' : '/individual')
 }
 
+// Borra una sola fila: en una compra en cuotas, solo esa cuota (ver TODO en lib/installments.ts).
 export async function deleteExpense(id: string) {
   const session = await verifySession()
 
