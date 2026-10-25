@@ -21,9 +21,29 @@ export type Database = {
         Update: { user_id?: string | null; couple_id?: string | null; created_by?: string | null; amount?: number; category?: string; description?: string | null; date?: string; is_income?: boolean }
         Relationships: []
       }
+      investment_portfolios: {
+        Row: { user_id: string; initial_invested_usd: number; initial_gain_usd: number; initial_date: string; units_owned: number; units_initialized: boolean; created_at: string; updated_at: string }
+        Insert: { user_id: string; initial_invested_usd: number; initial_gain_usd: number; initial_date: string; units_owned?: number; units_initialized?: boolean; updated_at?: string }
+        Update: { initial_invested_usd?: number; initial_gain_usd?: number; initial_date?: string; units_owned?: number; units_initialized?: boolean; updated_at?: string }
+        Relationships: []
+      }
+      investment_purchases: {
+        Row: { id: string; user_id: string; amount_usd: number; purchase_date: string; price_usd: number; units_added: number; created_at: string }
+        Insert: { user_id: string; amount_usd: number; purchase_date: string; price_usd: number; units_added: number }
+        Update: { amount_usd?: number; purchase_date?: string; price_usd?: number; units_added?: number }
+        Relationships: []
+      }
+      investment_price_snapshots: {
+        Row: { id: string; symbol: string; price_usd: number; trade_at: string; fetched_at: string; trading_date: string; source: string }
+        Insert: { symbol?: string; price_usd: number; trade_at: string; fetched_at?: string; trading_date: string; source?: string }
+        Update: { price_usd?: number; trade_at?: string; fetched_at?: string; trading_date?: string; source?: string }
+        Relationships: []
+      }
     }
     Views: Record<string, never>
-    Functions: Record<string, never>
+    Functions: {
+      add_cspx_purchase: { Args: { p_user_id: string; p_amount: number; p_purchase_date: string }; Returns: undefined }
+    }
     Enums: Record<string, never>
     CompositeTypes: Record<string, never>
   }
