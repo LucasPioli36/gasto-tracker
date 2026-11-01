@@ -16,9 +16,9 @@ export type Database = {
         Relationships: []
       }
       expenses: {
-        Row: { id: string; user_id: string | null; couple_id: string | null; created_by: string | null; amount: number; category: string; description: string | null; date: string; created_at: string; is_income: boolean; submission_key: string | null }
-        Insert: { user_id?: string | null; couple_id?: string | null; created_by?: string | null; amount: number; category: string; description?: string | null; date?: string; is_income?: boolean; submission_key?: string | null }
-        Update: { user_id?: string | null; couple_id?: string | null; created_by?: string | null; amount?: number; category?: string; description?: string | null; date?: string; is_income?: boolean; submission_key?: string | null }
+        Row: { id: string; user_id: string | null; couple_id: string | null; created_by: string | null; amount: number; category: string; description: string | null; date: string; created_at: string; is_income: boolean; submission_key: string | null; submission_identity: string | null; submission_fingerprint: string | null; submission_user_id: string | null }
+        Insert: { user_id?: string | null; couple_id?: string | null; created_by?: string | null; amount: number; category: string; description?: string | null; date?: string; is_income?: boolean; submission_key?: string | null; submission_identity?: string | null; submission_fingerprint?: string | null; submission_user_id?: string | null }
+        Update: { user_id?: string | null; couple_id?: string | null; created_by?: string | null; amount?: number; category?: string; description?: string | null; date?: string; is_income?: boolean; submission_key?: string | null; submission_identity?: string | null; submission_fingerprint?: string | null; submission_user_id?: string | null }
         Relationships: []
       }
       investment_portfolios: {

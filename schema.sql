@@ -33,6 +33,9 @@ CREATE TABLE expenses (
   is_income BOOLEAN NOT NULL DEFAULT FALSE,
   is_investment BOOLEAN DEFAULT FALSE, -- existe en la base, la app no lo usa
   submission_key TEXT,
+  submission_identity TEXT,
+  submission_fingerprint TEXT,
+  submission_user_id UUID REFERENCES users(id),
   created_at TIMESTAMPTZ DEFAULT NOW(),
   CONSTRAINT expense_owner CHECK (
     (user_id IS NOT NULL AND couple_id IS NULL) OR
@@ -42,6 +45,9 @@ CREATE TABLE expenses (
 );
 
 CREATE UNIQUE INDEX expenses_submission_key_unique_idx ON expenses (submission_key) WHERE submission_key IS NOT NULL;
+CREATE UNIQUE INDEX expenses_submission_identity_unique_idx
+  ON expenses (submission_user_id, submission_identity)
+  WHERE submission_identity IS NOT NULL AND submission_user_id IS NOT NULL;
 
 -- Seguimiento personal del ETF CSPX. Los importes de entrada se cargan en USD;
 -- las unidades se calculan internamente a partir de la cotización disponible.

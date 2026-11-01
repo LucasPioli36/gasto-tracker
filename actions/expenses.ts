@@ -7,9 +7,9 @@ import { CATEGORIES } from '@/lib/categories'
 import { todayInMontevideo } from '@/lib/investment-format'
 import {
   fingerprintExpenseSubmission,
-  hasExpenseSubmissionConflict,
   makeExpenseSubmissionKey,
-  resolveExpenseSubmission,
+  makeExpenseSubmissionIdentity,
+  submitExpenseAtomically,
 } from '@/lib/expense-submission'
 
 export type ExpenseFormState = {
@@ -87,12 +87,19 @@ function revalidateAll() {
 
 async function findSubmission(userId: string, requestKey: string) {
   const { data, error } = await db.from('expenses')
-    .select('submission_key')
-    .like('submission_key', `${requestKey}:%`)
-    .or(`user_id.eq.${userId},created_by.eq.${userId}`)
+    .select('submission_identity, submission_fingerprint, submission_user_id')
+    .eq('submission_user_id', userId)
+    .like('submission_identity', `${requestKey}:%`)
     .limit(1)
     .maybeSingle()
-  return { submissionKey: data?.submission_key ?? null, error }
+  return {
+    existing: data?.submission_identity && data.submission_user_id ? {
+      identity: data.submission_identity,
+      fingerprint: data.submission_fingerprint,
+      userId: data.submission_user_id,
+    } : null,
+    error,
+  }
 }
 
 export async function addExpense(prevState: ExpenseFormState, formData: FormData): Promise<ExpenseFormState> {
@@ -115,15 +122,6 @@ export async function addExpense(prevState: ExpenseFormState, formData: FormData
     date: f.date,
     installments: f.installments,
   })
-  const { submissionKey: priorSubmission, error: priorSubmissionError } = await findSubmission(session.userId, f.requestKey)
-  if (priorSubmissionError) return { error: 'No pudimos confirmar el estado del guardado. Conservamos el formulario; intentá de nuevo.', field: 'form' }
-  const priorState = resolveExpenseSubmission(priorSubmission, f.requestKey, fingerprint)
-  if (priorState === 'different') return { error: 'Esta clave ya se usó para guardar otros datos. Actualizá la lista o descartá el borrador antes de iniciar otro movimiento.', field: 'form' }
-  if (priorState === 'same') {
-    revalidateAll()
-    return { success: f.tipo === 'pareja' ? '/pareja' : '/individual' }
-  }
-
   // En cuotas, el monto ingresado es el total; se guarda una fila por mes.
   const cuotas = f.installments > 1
     ? splitInstallments(f.amount, f.installments, f.date).map((c) => ({
@@ -133,34 +131,42 @@ export async function addExpense(prevState: ExpenseFormState, formData: FormData
       }))
     : [{ amount: f.amount, date: f.date, description: f.description }]
 
-  if (!f.isIncome && !f.confirmDuplicate) {
-    const result = await findCrossScopeDuplicate(session.userId, session.coupleId, f.tipo, cuotas[0].date, cuotas[0].amount)
-    if ('lookupError' in result) return { error: 'No pudimos comprobar duplicados. Revisá tu conexión e intentá de nuevo.', field: 'form' }
-    if (result.duplicate) return { duplicate: result.duplicate }
-  }
-
   const owner = f.tipo === 'pareja'
     ? { couple_id: session.coupleId as string, created_by: session.userId }
     : { user_id: session.userId }
 
-  // Un solo INSERT con todas las filas: o se guardan todas las cuotas o ninguna.
-  const { error } = await db.from('expenses').insert(cuotas.map((c, index) => ({
-    ...owner,
-    ...c,
-    category: f.category,
-    is_income: f.isIncome,
-    submission_key: makeExpenseSubmissionKey(f.requestKey, fingerprint, index),
-  })))
-  if (hasExpenseSubmissionConflict(error)) {
-    const { submissionKey, error: reconcileError } = await findSubmission(session.userId, f.requestKey)
-    if (reconcileError) return { error: 'No pudimos confirmar si el guardado se completó. Conservamos el formulario; intentá de nuevo.', field: 'form' }
-    if (resolveExpenseSubmission(submissionKey, f.requestKey, fingerprint) !== 'same') {
-      return { error: 'No pudimos confirmar este guardado con los mismos datos. Conservamos el formulario; revisá el listado antes de reintentar.', field: 'form' }
-    }
-    revalidateAll()
-    return { success: f.tipo === 'pareja' ? '/pareja' : '/individual' }
-  }
-  if (error) return { error: 'Error al guardar. Revisá tu conexión e intentá de nuevo.', field: 'form' }
+  const submission = await submitExpenseAtomically<ExpenseFormState>({
+    userId: session.userId,
+    requestId: f.requestKey,
+    fingerprint,
+    find: () => findSubmission(session.userId, f.requestKey),
+    beforeInsert: async () => {
+      if (!f.isIncome && !f.confirmDuplicate) {
+        const result = await findCrossScopeDuplicate(session.userId, session.coupleId, f.tipo, cuotas[0].date, cuotas[0].amount)
+        if ('lookupError' in result) return { continue: false, value: { error: 'No pudimos comprobar duplicados. Revisá tu conexión e intentá de nuevo.', field: 'form' } }
+        if (result.duplicate) return { continue: false, value: { duplicate: result.duplicate } }
+      }
+      return { continue: true }
+    },
+    // La identidad estable y el lote completo quedan bajo índices únicos dentro de una sola transacción SQL.
+    insert: async () => {
+      const { error } = await db.from('expenses').insert(cuotas.map((c, index) => ({
+        ...owner,
+        ...c,
+        category: f.category,
+        is_income: f.isIncome,
+        submission_key: makeExpenseSubmissionKey(f.requestKey, fingerprint, index),
+        submission_identity: makeExpenseSubmissionIdentity(f.requestKey, index),
+        submission_fingerprint: fingerprint,
+        submission_user_id: session.userId,
+      })))
+      return { error }
+    },
+  })
+
+  if (submission.kind === 'stopped') return submission.value
+  if (submission.kind === 'failed') return { error: 'No pudimos confirmar el estado del guardado. Conservamos el formulario; revisá tu conexión e intentá de nuevo.', field: 'form' }
+  if (submission.kind === 'different') return { error: 'Esta clave ya se usó para guardar otros datos. Actualizá la lista o descartá el borrador antes de iniciar otro movimiento.', field: 'form' }
 
   revalidateAll()
   return { success: f.tipo === 'pareja' ? '/pareja' : '/individual' }
