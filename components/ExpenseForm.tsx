@@ -1,11 +1,12 @@
 'use client'
-import { useActionState, useEffect, useState } from 'react'
+import { useActionState, useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import type { ExpenseFormState } from '@/actions/expenses'
 import { CATEGORIES } from '@/lib/categories'
 import { formatUYU } from '@/lib/format'
 import { MAX_INSTALLMENTS, splitInstallments } from '@/lib/installments'
+import { restoreExpenseRequestKey } from '@/lib/expense-drafts'
 
 type Tipo = 'individual' | 'pareja'
 
@@ -33,12 +34,10 @@ type Props = {
   mode: 'add' | 'edit'
   // Para "¿Quién pagó?" al editar un gasto de pareja.
   members?: { id: string; name: string }[]
-  // Referencias usadas antes, para sugerir al escribir.
-  suggestions?: string[]
   draftKey?: string
 }
 
-export default function ExpenseForm({ action, initial, mode, members = [], suggestions = [], draftKey }: Props) {
+export default function ExpenseForm({ action, initial, mode, members = [], draftKey }: Props) {
   const router = useRouter()
   const [tipo, setTipo] = useState<Tipo>(initial.tipo)
   const [isIngreso, setIsIngreso] = useState(initial.isIncome)
@@ -49,16 +48,35 @@ export default function ExpenseForm({ action, initial, mode, members = [], sugge
   const [paidBy, setPaidBy] = useState(initial.paidBy ?? '')
   const [installments, setInstallments] = useState(1)
   const [requestKey, setRequestKey] = useState('')
-  const [draftRestored, setDraftRestored] = useState(false)
+  const [suggestions, setSuggestions] = useState<string[]>([])
+  const [restoredDraftKey, setRestoredDraftKey] = useState<string | null>(null)
+  const hydratedDraftKey = useRef<string | null>(null)
   const [state, formAction, pending] = useActionState(action, null)
 
   useEffect(() => {
-    if (!draftKey) {
-      // This is a one-time hydration signal after synchronizing from browser storage.
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      setDraftRestored(true)
-      return
-    }
+    let active = true
+    fetch('/api/expenses/suggestions', { cache: 'no-store', credentials: 'same-origin' })
+      .then(async (response) => {
+        if (!response.ok) return
+        const result: unknown = await response.json()
+        if (!active || !result || typeof result !== 'object' || !('suggestions' in result)) return
+        const values = result.suggestions
+        if (Array.isArray(values) && values.every((value) => typeof value === 'string')) setSuggestions(values)
+      })
+      .catch(() => {
+        // Suggestions are optional; a failed read must not block the form.
+      })
+    return () => { active = false }
+  }, [])
+
+  useEffect(() => {
+    if (!draftKey || hydratedDraftKey.current === draftKey) return
+    hydratedDraftKey.current = draftKey
+    let draft: Partial<{
+      tipo: Tipo; isIngreso: boolean; selectedCategory: string; amount: string
+      description: string; date: string; paidBy: string; installments: number
+      requestKey: string
+    }> | null = null
     try {
       const accountId = draftKey.split(':')[1]
       const activeAccountMarker = 'expense-draft:active-user'
@@ -70,31 +88,25 @@ export default function ExpenseForm({ action, initial, mode, members = [], sugge
       }
       sessionStorage.setItem(activeAccountMarker, accountId)
       const saved = sessionStorage.getItem(draftKey)
-      if (saved) {
-        const draft = JSON.parse(saved) as Partial<{
-          tipo: Tipo; isIngreso: boolean; selectedCategory: string; amount: string
-          description: string; date: string; paidBy: string; installments: number
-          requestKey: string
-        }>
-        if (draft.tipo === 'individual' || draft.tipo === 'pareja') setTipo(draft.tipo)
-        if (typeof draft.isIngreso === 'boolean') setIsIngreso(draft.isIngreso)
-        if (typeof draft.selectedCategory === 'string') setSelectedCategory(draft.selectedCategory)
-        if (typeof draft.amount === 'string') setAmount(draft.amount)
-        if (typeof draft.description === 'string') setDescription(draft.description)
-        if (typeof draft.date === 'string') setDate(draft.date)
-        if (typeof draft.paidBy === 'string') setPaidBy(draft.paidBy)
-        if (Number.isInteger(draft.installments) && draft.installments! >= 1 && draft.installments! <= MAX_INSTALLMENTS) setInstallments(draft.installments!)
-        if (typeof draft.requestKey === 'string') setRequestKey(draft.requestKey)
-      }
+      if (saved) draft = JSON.parse(saved)
     } catch {
       try { sessionStorage.removeItem(draftKey) } catch { /* Ignore disabled browser storage. */ }
     }
-    if (mode === 'add' && !requestKey) setRequestKey(createRequestId())
-    setDraftRestored(true)
-  }, [draftKey, mode, requestKey])
+    if (draft?.tipo === 'individual' || draft?.tipo === 'pareja') setTipo(draft.tipo)
+    if (typeof draft?.isIngreso === 'boolean') setIsIngreso(draft.isIngreso)
+    if (typeof draft?.selectedCategory === 'string') setSelectedCategory(draft.selectedCategory)
+    if (typeof draft?.amount === 'string') setAmount(draft.amount)
+    if (typeof draft?.description === 'string') setDescription(draft.description)
+    if (typeof draft?.date === 'string') setDate(draft.date)
+    if (typeof draft?.paidBy === 'string') setPaidBy(draft.paidBy)
+    if (Number.isInteger(draft?.installments) && draft!.installments! >= 1 && draft!.installments! <= MAX_INSTALLMENTS) setInstallments(draft!.installments!)
+    setRequestKey(mode === 'add' ? restoreExpenseRequestKey(draft, createRequestId) : '')
+    // Browser storage is external state; this marks the one-time restoration for this form identity.
+    setRestoredDraftKey(draftKey)
+  }, [draftKey, mode])
 
   useEffect(() => {
-    if (!draftRestored || !draftKey) return
+    if (!draftKey || restoredDraftKey !== draftKey) return
     if (state?.success) {
       try { sessionStorage.removeItem(draftKey) } catch { /* Ignore disabled browser storage. */ }
       router.replace(state.success)
@@ -105,7 +117,7 @@ export default function ExpenseForm({ action, initial, mode, members = [], sugge
     } catch {
       // The current form remains usable if storage is disabled by the browser.
     }
-  }, [amount, date, description, draftKey, draftRestored, installments, isIngreso, paidBy, requestKey, router, selectedCategory, state?.success, tipo])
+  }, [amount, date, description, draftKey, installments, isIngreso, paidBy, requestKey, restoredDraftKey, router, selectedCategory, state?.success, tipo])
 
   function handleTipoChange(t: boolean) {
     setIsIngreso(t)

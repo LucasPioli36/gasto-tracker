@@ -5,6 +5,12 @@ import { db } from '@/lib/db'
 import { MAX_INSTALLMENTS, installmentDescription, splitInstallments } from '@/lib/installments'
 import { CATEGORIES } from '@/lib/categories'
 import { todayInMontevideo } from '@/lib/investment-format'
+import {
+  fingerprintExpenseSubmission,
+  hasExpenseSubmissionConflict,
+  makeExpenseSubmissionKey,
+  resolveExpenseSubmission,
+} from '@/lib/expense-submission'
 
 export type ExpenseFormState = {
   error?: string
@@ -79,6 +85,16 @@ function revalidateAll() {
   revalidatePath('/metricas')
 }
 
+async function findSubmission(userId: string, requestKey: string) {
+  const { data, error } = await db.from('expenses')
+    .select('submission_key')
+    .like('submission_key', `${requestKey}:%`)
+    .or(`user_id.eq.${userId},created_by.eq.${userId}`)
+    .limit(1)
+    .maybeSingle()
+  return { submissionKey: data?.submission_key ?? null, error }
+}
+
 export async function addExpense(prevState: ExpenseFormState, formData: FormData): Promise<ExpenseFormState> {
   const session = await verifySession()
   const f = parseForm(formData)
@@ -88,13 +104,22 @@ export async function addExpense(prevState: ExpenseFormState, formData: FormData
   if (!validRequestKey(f.requestKey)) return { error: 'No se pudo identificar este envío. Recargá el formulario e intentá de nuevo.', field: 'form' }
   if (f.tipo === 'pareja' && !session.coupleId) return { error: 'No tenés una cuenta de pareja configurada', field: 'form' }
 
-  const { data: priorSubmission, error: priorSubmissionError } = await db.from('expenses')
-    .select('id')
-    .eq('submission_key', `${f.requestKey}:0`)
-    .or(`user_id.eq.${session.userId},created_by.eq.${session.userId}`)
-    .maybeSingle()
+  const fingerprint = fingerprintExpenseSubmission({
+    userId: session.userId,
+    tipo: f.tipo,
+    coupleId: session.coupleId,
+    isIncome: f.isIncome,
+    amount: f.amount,
+    category: f.category,
+    description: f.description,
+    date: f.date,
+    installments: f.installments,
+  })
+  const { submissionKey: priorSubmission, error: priorSubmissionError } = await findSubmission(session.userId, f.requestKey)
   if (priorSubmissionError) return { error: 'No pudimos confirmar el estado del guardado. Conservamos el formulario; intentá de nuevo.', field: 'form' }
-  if (priorSubmission) {
+  const priorState = resolveExpenseSubmission(priorSubmission, f.requestKey, fingerprint)
+  if (priorState === 'different') return { error: 'Esta clave ya se usó para guardar otros datos. Actualizá la lista o descartá el borrador antes de iniciar otro movimiento.', field: 'form' }
+  if (priorState === 'same') {
     revalidateAll()
     return { success: f.tipo === 'pareja' ? '/pareja' : '/individual' }
   }
@@ -124,9 +149,14 @@ export async function addExpense(prevState: ExpenseFormState, formData: FormData
     ...c,
     category: f.category,
     is_income: f.isIncome,
-    submission_key: `${f.requestKey}:${index}`,
+    submission_key: makeExpenseSubmissionKey(f.requestKey, fingerprint, index),
   })))
-  if (error?.code === '23505') {
+  if (hasExpenseSubmissionConflict(error)) {
+    const { submissionKey, error: reconcileError } = await findSubmission(session.userId, f.requestKey)
+    if (reconcileError) return { error: 'No pudimos confirmar si el guardado se completó. Conservamos el formulario; intentá de nuevo.', field: 'form' }
+    if (resolveExpenseSubmission(submissionKey, f.requestKey, fingerprint) !== 'same') {
+      return { error: 'No pudimos confirmar este guardado con los mismos datos. Conservamos el formulario; revisá el listado antes de reintentar.', field: 'form' }
+    }
     revalidateAll()
     return { success: f.tipo === 'pareja' ? '/pareja' : '/individual' }
   }

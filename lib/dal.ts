@@ -167,13 +167,14 @@ export const getCoupleHistory = cache(async (coupleId: string, monthlyBudget = 0
 // Referencias usadas recientemente (mías y de la pareja), para autocompletar al cargar.
 export const getRecentDescriptions = cache(async (userId: string, coupleId: string | null) => {
   const filter = coupleId ? `${ownMovementsFilter(userId)},couple_id.eq.${coupleId}` : ownMovementsFilter(userId)
-  const { data } = await db
+  const { data, error } = await db
     .from('expenses')
     .select('description')
     .or(filter)
     .not('description', 'is', null)
     .order('created_at', { ascending: false })
     .limit(200)
+  if (error) throw new Error('No se pudieron cargar las referencias recientes.')
   return [...new Set((data ?? []).map((r) => r.description!.trim()).filter(Boolean))].slice(0, 50)
 })
 
