@@ -1,6 +1,6 @@
 'use client'
 
-import Link from 'next/link'
+import Link, { useLinkStatus } from 'next/link'
 import { usePathname } from 'next/navigation'
 import { User, Users, Plus, Settings, BarChart2, TrendingUp } from 'lucide-react'
 
@@ -9,38 +9,46 @@ export default function BottomNavClient({ showInvestments }: { showInvestments: 
   const tipo = pathname === '/pareja' ? 'pareja' : 'individual'
 
   const linkClass = (href: string) =>
-    `${showInvestments ? 'min-w-0 flex flex-1 px-0' : 'flex px-4'} flex-col items-center gap-1 py-2 rounded-xl transition-colors ${
-      pathname === href ? 'text-emerald-400' : 'text-gray-500 hover:text-gray-300'
+    `flex min-w-0 flex-1 flex-col items-center justify-center gap-1 rounded-xl px-0 py-1 text-gray-300 transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-emerald-400 ${
+      pathname === href ? 'text-emerald-300' : 'hover:text-white'
     }`
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 bg-gray-900 border-t border-gray-800" style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}>
-      <div className={`flex justify-around items-center h-16 max-w-md mx-auto ${showInvestments ? 'px-1' : 'px-2'}`}>
-        <Link href="/individual" className={linkClass('/individual')}>
+      <div className="mx-auto flex h-16 max-w-md items-center justify-around gap-0.5 px-1">
+        <Link href="/individual" aria-current={pathname === '/individual' ? 'page' : undefined} className={linkClass('/individual')}>
           <User size={20} />
-          <span className={showInvestments ? 'whitespace-nowrap text-[9px] font-medium' : 'text-xs font-medium'}>Yo</span>
+          <span className="whitespace-nowrap text-[11px] font-semibold">Yo</span><PendingCue />
         </Link>
-        <Link href="/pareja" className={linkClass('/pareja')}>
+        <Link href="/pareja" aria-current={pathname === '/pareja' ? 'page' : undefined} className={linkClass('/pareja')}>
           <Users size={20} />
-          <span className={showInvestments ? 'whitespace-nowrap text-[9px] font-medium' : 'text-xs font-medium'}>Pareja</span>
+          <span className="whitespace-nowrap text-[11px] font-semibold">Pareja</span><PendingCue />
         </Link>
-        <Link href={`/agregar?tipo=${tipo}`} className={linkClass('/agregar')}>
+        <Link href={`/agregar?tipo=${tipo}`} aria-current={pathname === '/agregar' ? 'page' : undefined} className={linkClass('/agregar')}>
           <Plus size={20} />
-          <span className={showInvestments ? 'whitespace-nowrap text-[9px] font-medium' : 'text-xs font-medium'}>Agregar</span>
+          <span className="whitespace-nowrap text-[11px] font-semibold">Agregar</span><PendingCue />
         </Link>
-        {showInvestments && <Link href="/inversiones" className={linkClass('/inversiones')}>
+        {showInvestments && <Link href="/inversiones" aria-current={pathname === '/inversiones' ? 'page' : undefined} className={linkClass('/inversiones')}>
           <TrendingUp size={20} />
-          <span className="whitespace-nowrap text-[9px] font-medium">Inversiones</span>
+          <span className="whitespace-nowrap text-[10px] font-semibold">Inversiones</span><PendingCue />
         </Link>}
-        <Link href="/metricas" className={linkClass('/metricas')}>
+        <Link href="/metricas" aria-current={pathname === '/metricas' ? 'page' : undefined} className={linkClass('/metricas')}>
           <BarChart2 size={20} />
-          <span className={showInvestments ? 'whitespace-nowrap text-[9px] font-medium' : 'text-xs font-medium'}>Métricas</span>
+          <span className="whitespace-nowrap text-[11px] font-semibold">Métricas</span><PendingCue />
         </Link>
-        <Link href="/config" className={linkClass('/config')}>
+        <Link href="/config" aria-current={pathname === '/config' ? 'page' : undefined} className={linkClass('/config')}>
           <Settings size={20} />
-          <span className={showInvestments ? 'whitespace-nowrap text-[9px] font-medium' : 'text-xs font-medium'}>Config</span>
+          <span className="whitespace-nowrap text-[11px] font-semibold">Config</span><PendingCue />
         </Link>
       </div>
     </nav>
   )
+}
+
+function PendingCue() {
+  const { pending } = useLinkStatus()
+  return <>
+    <span aria-hidden="true" className={`h-1 w-1 rounded-full ${pending ? 'bg-amber-300' : 'bg-transparent'}`} />
+    <span role="status" className="sr-only">{pending ? 'Abriendo pantalla' : ''}</span>
+  </>
 }

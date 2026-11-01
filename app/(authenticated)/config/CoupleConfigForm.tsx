@@ -1,22 +1,23 @@
 'use client'
 import { useActionState } from 'react'
-import { updateCoupleConfig } from '@/actions/config'
+import { updateCoupleConfig, type ConfigActionState } from '@/actions/config'
 
 type Props = {
   monthlyBudget: number
 }
 
 export default function CoupleConfigForm({ monthlyBudget }: Props) {
-  const [result, action, pending] = useActionState(updateCoupleConfig, null)
+  const [result, action, pending] = useActionState<ConfigActionState, FormData>(updateCoupleConfig, null)
 
   return (
     <form action={action} className="flex flex-col gap-4">
       <div>
-        <label className="text-sm text-gray-400 font-medium block mb-1.5">Presupuesto mensual conjunto</label>
+        <label htmlFor="monthly_budget" className="text-sm text-gray-400 font-medium block mb-1.5">Presupuesto mensual conjunto</label>
         <div className="relative">
           <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500 text-sm">$</span>
           <input
             name="monthly_budget"
+            id="monthly_budget"
             type="number"
             inputMode="decimal"
             min="0"
@@ -28,12 +29,8 @@ export default function CoupleConfigForm({ monthlyBudget }: Props) {
         </div>
       </div>
 
-      {result && typeof result === 'string' && (
-        <p className="text-red-400 text-sm bg-red-950/50 rounded-xl py-2 px-3">{result}</p>
-      )}
-      {result === null && !pending && (
-        <p className="text-emerald-400 text-sm">¡Guardado!</p>
-      )}
+      {result?.error && <p role="alert" aria-live="assertive" className="text-red-300 text-sm bg-red-950/50 rounded-xl py-2 px-3">{result.error}</p>}
+      {result?.success && <p role="status" aria-live="polite" className="text-emerald-300 text-sm">¡Guardado!</p>}
 
       <button
         type="submit"

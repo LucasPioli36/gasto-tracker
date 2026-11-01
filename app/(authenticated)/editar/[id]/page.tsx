@@ -1,19 +1,14 @@
 import { notFound } from 'next/navigation'
 import { updateExpense } from '@/actions/expenses'
-import BottomNav from '@/components/BottomNav'
 import ExpenseForm from '@/components/ExpenseForm'
-import { getCoupleData, getExpenseForEdit, getRecentDescriptions, verifySession } from '@/lib/dal'
+import { getCoupleMetadata, getExpenseForEdit, verifySession } from '@/lib/dal'
 
 export default async function EditarPage({ params }: { params: Promise<{ id: string }> }) {
   const session = await verifySession()
   const { id } = await params
-  const expense = await getExpenseForEdit(id)
+  const couplePromise = session.coupleId ? getCoupleMetadata(session.coupleId) : Promise.resolve(null)
+  const [expense, coupleData] = await Promise.all([getExpenseForEdit(id), couplePromise])
   if (!expense) notFound()
-
-  const [suggestions, coupleData] = await Promise.all([
-    getRecentDescriptions(session.userId, session.coupleId),
-    session.coupleId ? getCoupleData(session.coupleId) : null,
-  ])
 
   return (
     <div className="min-h-screen bg-gray-950">
@@ -22,7 +17,7 @@ export default async function EditarPage({ params }: { params: Promise<{ id: str
         <ExpenseForm
           mode="edit"
           action={updateExpense.bind(null, expense.id)}
-          suggestions={suggestions}
+          draftKey={`expense-draft:${session.userId}:edit:${expense.id}`}
           members={coupleData?.members ?? []}
           initial={{
             tipo: expense.couple_id ? 'pareja' : 'individual',
@@ -36,7 +31,6 @@ export default async function EditarPage({ params }: { params: Promise<{ id: str
           }}
         />
       </div>
-      <BottomNav />
     </div>
   )
 }

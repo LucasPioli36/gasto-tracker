@@ -5,9 +5,7 @@
   box-sizing: border-box;
 }
 
-body {
-  overscroll-behavior: none;
-}
+body { min-height: 100dvh; }
 
 input[type='number']::-webkit-inner-spin-button,
 input[type='number']::-webkit-outer-spin-button {

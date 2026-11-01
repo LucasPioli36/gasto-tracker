@@ -20,15 +20,15 @@ function currentMonthLabel() {
 
 export default async function HomePage() {
   const session = await verifySession()
-  const user = await getCurrentUser()
+  const userPromise = getCurrentUser()
+  const coupleDataPromise = session.coupleId ? getCoupleData(session.coupleId) : Promise.resolve(null)
+  const individualExpensesPromise = getIndividualExpenses(session.userId)
+  const [user, expenses, coupleData] = await Promise.all([userPromise, individualExpensesPromise, coupleDataPromise])
   if (!user) redirect('/login')
-
-  const expenses = await getIndividualExpenses(user.id)
   const { spent: totalGastado, income: totalIngresos, saved: totalAhorro, extra: totalViajes } = movementTotals(expenses)
   const limiteGasto = user.salary + totalIngresos - user.savings_goal
   const disponible = limiteGasto - totalGastado
 
-  const coupleData = session.coupleId ? await getCoupleData(session.coupleId) : null
   const { spent: totalGastadoPareja, income: totalIngresosPareja, saved: totalAhorroPareja, extra: totalViajesPareja } = movementTotals(coupleData?.expenses ?? [])
   const presupuestoPareja = coupleData?.couple?.monthly_budget ?? 0
   const fondoPareja = presupuestoPareja + totalIngresosPareja

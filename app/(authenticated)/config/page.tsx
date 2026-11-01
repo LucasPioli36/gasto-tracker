@@ -1,15 +1,14 @@
-import BottomNav from '@/components/BottomNav'
-import { getCurrentUser, getCoupleData, verifySession } from '@/lib/dal'
+import { getCurrentUser, getCoupleMetadata, verifySession } from '@/lib/dal'
 import UserConfigForm from './UserConfigForm'
 import CoupleConfigForm from './CoupleConfigForm'
 import { redirect } from 'next/navigation'
 
 export default async function ConfigPage() {
   const session = await verifySession()
-  const user = await getCurrentUser()
+  const userPromise = getCurrentUser()
+  const couplePromise = session.coupleId ? getCoupleMetadata(session.coupleId) : Promise.resolve(null)
+  const [user, couple] = await Promise.all([userPromise, couplePromise])
   if (!user) redirect('/login')
-
-  const coupleData = session.coupleId ? await getCoupleData(session.coupleId) : null
 
   return (
     <div className="min-h-screen bg-gray-950">
@@ -24,10 +23,10 @@ export default async function ConfigPage() {
           </div>
 
           {/* Couple config */}
-          {coupleData && (
+          {couple && (
             <div className="bg-gray-900 rounded-2xl p-5">
               <h2 className="text-base font-semibold text-white mb-4">Pareja</h2>
-              <CoupleConfigForm monthlyBudget={coupleData.couple?.monthly_budget ?? 0} />
+              <CoupleConfigForm monthlyBudget={couple.couple?.monthly_budget ?? 0} />
             </div>
           )}
 
@@ -36,7 +35,6 @@ export default async function ConfigPage() {
           </div>
         </div>
       </div>
-      <BottomNav />
     </div>
   )
 }

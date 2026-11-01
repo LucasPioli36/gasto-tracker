@@ -1,5 +1,4 @@
 import { redirect } from 'next/navigation'
-import BottomNav from '@/components/BottomNav'
 import PortfolioPanel from '@/components/PortfolioPanel'
 import { getCurrentUser } from '@/lib/dal'
 import { requireInvestmentOwner } from '@/lib/investment-auth'
@@ -19,7 +18,6 @@ export default async function InvestmentsPage() {
       <div className="max-w-md mx-auto px-4 pt-6 pb-28">
         <PortfolioPanel {...dashboard} setupDate={todayInMontevideo()} />
       </div>
-      <BottomNav />
     </div>
   )
 }

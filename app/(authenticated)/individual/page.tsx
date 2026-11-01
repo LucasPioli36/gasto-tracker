@@ -1,8 +1,7 @@
 import ProgressBar from '@/components/ProgressBar'
 import ExpenseItem from '@/components/ExpenseItem'
-import BottomNav from '@/components/BottomNav'
 import ApartadoRow from '@/components/ApartadoRow'
-import { getCurrentUser, getIndividualExpenses } from '@/lib/dal'
+import { getCurrentUser, getIndividualExpenses, verifySession } from '@/lib/dal'
 import { movementTotals } from '@/lib/totals'
 import { redirect } from 'next/navigation'
 
@@ -37,10 +36,9 @@ function formatDateHeader(dateStr: string) {
 }
 
 export default async function IndividualPage() {
-  const user = await getCurrentUser()
+  const session = await verifySession()
+  const [user, expenses] = await Promise.all([getCurrentUser(), getIndividualExpenses(session.userId)])
   if (!user) redirect('/login')
-
-  const expenses = await getIndividualExpenses(user.id)
   const { spent: totalGastado, income: totalIngresos, saved: totalAhorro, extra: totalViajes } = movementTotals(expenses)
   const limiteGasto = user.salary + totalIngresos - user.savings_goal
   const disponible = limiteGasto - totalGastado
@@ -115,8 +113,6 @@ export default async function IndividualPage() {
           )}
         </div>
       </div>
-
-      <BottomNav />
     </div>
   )
 }

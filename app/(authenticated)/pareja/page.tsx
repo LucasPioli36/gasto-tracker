@@ -1,6 +1,5 @@
 import ProgressBar from '@/components/ProgressBar'
 import ExpenseItem from '@/components/ExpenseItem'
-import BottomNav from '@/components/BottomNav'
 import ApartadoRow from '@/components/ApartadoRow'
 import { getCoupleData, verifySession } from '@/lib/dal'
 import { movementTotals, isDailyExpense } from '@/lib/totals'
@@ -49,7 +48,6 @@ export default async function ParejaPage() {
           <p className="text-4xl mb-4">💑</p>
           <p className="text-sm">Sin cuenta de pareja configurada</p>
         </div>
-        <BottomNav />
       </div>
     )
   }
@@ -179,8 +177,6 @@ export default async function ParejaPage() {
           )}
         </div>
       </div>
-
-      <BottomNav />
     </div>
   )
 }

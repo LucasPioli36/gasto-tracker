@@ -13,11 +13,12 @@ export const verifySession = cache(async () => {
 
 export const getCurrentUser = cache(async () => {
   const session = await verifySession()
-  const { data } = await db
+  const { data, error } = await db
     .from('users')
     .select('id, name, username, salary, savings_goal')
     .eq('id', session.userId)
     .single()
+  if (error && error.code !== 'PGRST116') throw new Error('No se pudo cargar el perfil.')
   return data
 })
 
@@ -41,15 +42,43 @@ function isOwnMovement(row: { couple_id: string | null; is_income: boolean }) {
 
 export const getIndividualExpenses = cache(async (userId: string) => {
   const { start, end } = currentMonthRange()
-  const { data } = await db
+  const { data, error } = await db
     .from('expenses')
-    .select('*')
+    .select('id, amount, category, description, date, is_income, couple_id, created_at')
     .or(ownMovementsFilter(userId))
     .gte('date', start)
     .lte('date', end)
     .order('date', { ascending: false })
     .order('created_at', { ascending: false })
+  if (error) throw new Error('No se pudieron cargar los movimientos individuales.')
   return (data ?? []).filter(isOwnMovement)
+})
+
+export const getCoupleMetadata = cache(async (coupleId: string): Promise<{
+  couple: { id: string; user1_id: string; user2_id: string; monthly_budget: number; user1_name: string; user2_name: string } | null
+  members: { id: string; name: string }[]
+} | null> => {
+  const { data: rawCouple, error: coupleError } = await db.from('couple')
+    .select('id, user1_id, user2_id, monthly_budget')
+    .eq('id', coupleId)
+    .maybeSingle()
+  if (coupleError) throw new Error('No se pudo cargar la configuración de pareja.')
+  if (!rawCouple) return null
+
+  const { data: users, error: membersError } = await db.from('users')
+    .select('id, name')
+    .in('id', [rawCouple.user1_id, rawCouple.user2_id])
+  if (membersError) throw new Error('No se pudieron cargar los integrantes de pareja.')
+  const nameMap = Object.fromEntries((users ?? []).map((user) => [user.id, user.name]))
+  const couple = {
+    ...rawCouple,
+    user1_name: nameMap[rawCouple.user1_id] ?? '',
+    user2_name: nameMap[rawCouple.user2_id] ?? '',
+  }
+  return {
+    couple,
+    members: [rawCouple.user1_id, rawCouple.user2_id].map((id) => ({ id, name: nameMap[id] ?? 'Alguien' })),
+  }
 })
 
 export const getCoupleData = cache(async (coupleId: string): Promise<{
@@ -59,25 +88,18 @@ export const getCoupleData = cache(async (coupleId: string): Promise<{
 }> => {
   const { start, end } = currentMonthRange()
 
-  const [coupleRes, expensesRes] = await Promise.all([
-    db.from('couple').select('*').eq('id', coupleId).single(),
-    db.from('expenses').select('*').eq('couple_id', coupleId)
+  const [metadata, expensesRes] = await Promise.all([
+    getCoupleMetadata(coupleId),
+    db.from('expenses').select('id, amount, category, description, date, user_id, couple_id, created_by, created_at, is_income').eq('couple_id', coupleId)
       .gte('date', start).lte('date', end)
       .order('date', { ascending: false })
       .order('created_at', { ascending: false }),
   ])
+  if (expensesRes.error) throw new Error('No se pudieron cargar los movimientos de pareja.')
 
-  const couple = coupleRes.data as { id: string; user1_id: string; user2_id: string; monthly_budget: number; user1_name: string; user2_name: string } | null
+  const couple = metadata?.couple ?? null
   const rawExpenses = (expensesRes.data ?? []) as { id: string; amount: number; category: string; description: string | null; date: string; user_id: string | null; couple_id: string | null; created_by: string | null; created_at: string; is_income: boolean }[]
-
-  let nameMap: Record<string, string> = {}
-  if (couple) {
-    const { data: users } = await db
-      .from('users')
-      .select('id, name')
-      .in('id', [couple.user1_id, couple.user2_id])
-    if (users) nameMap = Object.fromEntries(users.map((u) => [u.id, u.name]))
-  }
+  const nameMap = Object.fromEntries((metadata?.members ?? []).map((member) => [member.id, member.name]))
 
   return {
     couple: couple ? { ...couple, user1_name: nameMap[couple.user1_id] ?? '', user2_name: nameMap[couple.user2_id] ?? '' } : null,
@@ -85,9 +107,7 @@ export const getCoupleData = cache(async (coupleId: string): Promise<{
       ...e,
       createdByName: e.created_by ? (nameMap[e.created_by] ?? null) : null,
     })),
-    members: couple
-      ? [couple.user1_id, couple.user2_id].map((id) => ({ id, name: nameMap[id] ?? 'Alguien' }))
-      : [],
+    members: metadata?.members ?? [],
   }
 })
 
@@ -106,11 +126,12 @@ function lastMonthsMeta(count: number) {
 
 export const getIndividualHistory = cache(async (userId: string, count = 6) => {
   const months = lastMonthsMeta(count)
-  const { data } = await db
+  const { data, error } = await db
     .from('expenses')
     .select('amount, date, is_income, couple_id, category')
     .or(ownMovementsFilter(userId))
     .gte('date', `${months[0].key}-01`)
+  if (error) throw new Error('No se pudo cargar el historial individual.')
 
   const byMonth = new Map<string, { amount: number; is_income: boolean; category: string }[]>()
   for (const e of (data ?? []).filter(isOwnMovement)) {
@@ -126,7 +147,8 @@ export const getCoupleHistory = cache(async (coupleId: string, monthlyBudget = 0
   const months = lastMonthsMeta(count)
   const start = `${months[0].key}-01`
 
-  const { data } = await db.from('expenses').select('amount, date, is_income, created_by, category').eq('couple_id', coupleId).gte('date', start)
+  const { data, error } = await db.from('expenses').select('amount, date, is_income, created_by, category').eq('couple_id', coupleId).gte('date', start)
+  if (error) throw new Error('No se pudo cargar el historial de pareja.')
 
   const expByMonth = new Map<string, { amount: number; is_income: boolean; created_by: string | null; category: string }[]>()
   for (const e of data ?? []) {
@@ -157,7 +179,8 @@ export const getRecentDescriptions = cache(async (userId: string, coupleId: stri
 
 export const getExpenseForEdit = cache(async (id: string) => {
   const session = await verifySession()
-  const { data } = await db.from('expenses').select('*').eq('id', id).single()
+  const { data, error } = await db.from('expenses').select('*').eq('id', id).single()
+  if (error && error.code !== 'PGRST116') throw new Error('No se pudo cargar el movimiento.')
   if (!data) return null
   const canEdit = data.couple_id ? data.couple_id === session.coupleId : data.user_id === session.userId
   return canEdit ? data : null

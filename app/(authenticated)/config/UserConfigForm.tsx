@@ -1,6 +1,6 @@
 'use client'
 import { useActionState } from 'react'
-import { updateUserConfig } from '@/actions/config'
+import { updateUserConfig, type ConfigActionState } from '@/actions/config'
 
 type Props = {
   salary: number
@@ -8,16 +8,17 @@ type Props = {
 }
 
 export default function UserConfigForm({ salary, savingsGoal }: Props) {
-  const [result, action, pending] = useActionState(updateUserConfig, null)
+  const [result, action, pending] = useActionState<ConfigActionState, FormData>(updateUserConfig, null)
 
   return (
     <form action={action} className="flex flex-col gap-4">
       <div>
-        <label className="text-sm text-gray-400 font-medium block mb-1.5">Sueldo mensual</label>
+            <label htmlFor="salary" className="text-sm text-gray-400 font-medium block mb-1.5">Sueldo mensual</label>
         <div className="relative">
           <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500 text-sm">$</span>
           <input
             name="salary"
+            id="salary"
             type="number"
             inputMode="decimal"
             min="0"
@@ -30,11 +31,12 @@ export default function UserConfigForm({ salary, savingsGoal }: Props) {
       </div>
 
       <div>
-        <label className="text-sm text-gray-400 font-medium block mb-1.5">Meta de ahorro mensual</label>
+            <label htmlFor="savings_goal" className="text-sm text-gray-400 font-medium block mb-1.5">Meta de ahorro mensual</label>
         <div className="relative">
           <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500 text-sm">$</span>
           <input
             name="savings_goal"
+            id="savings_goal"
             type="number"
             inputMode="decimal"
             min="0"
@@ -47,12 +49,8 @@ export default function UserConfigForm({ salary, savingsGoal }: Props) {
         <p className="text-xs text-gray-600 mt-1.5">Límite de gasto = sueldo − meta ahorro</p>
       </div>
 
-      {result && typeof result === 'string' && (
-        <p className="text-red-400 text-sm bg-red-950/50 rounded-xl py-2 px-3">{result}</p>
-      )}
-      {result === null && !pending && (
-        <p className="text-emerald-400 text-sm">¡Guardado!</p>
-      )}
+      {result?.error && <p role="alert" aria-live="assertive" className="text-red-300 text-sm bg-red-950/50 rounded-xl py-2 px-3">{result.error}</p>}
+      {result?.success && <p role="status" aria-live="polite" className="text-emerald-300 text-sm">¡Guardado!</p>}
 
       <button
         type="submit"

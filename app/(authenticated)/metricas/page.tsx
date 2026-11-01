@@ -1,5 +1,4 @@
-import BottomNav from '@/components/BottomNav'
-import { getCurrentUser, getIndividualExpenses, getCoupleData, getIndividualHistory, getCoupleHistory, verifySession } from '@/lib/dal'
+import { getCurrentUser, getIndividualExpenses, getCoupleData, getCoupleMetadata, getIndividualHistory, getCoupleHistory, verifySession } from '@/lib/dal'
 import { movementTotals, categoryTotals, contributionTotals } from '@/lib/totals'
 import { formatUYU } from '@/lib/format'
 import { getCategoryIcon, getCategoryLabel } from '@/lib/categories'
@@ -89,13 +88,22 @@ function capitalize(s: string) {
 
 export default async function MetricasPage() {
   const session = await verifySession()
-  const user = await getCurrentUser()
+  const userPromise = getCurrentUser()
+  const individualExpensesPromise = getIndividualExpenses(session.userId)
+  const individualHistoryPromise = getIndividualHistory(session.userId)
+  const coupleMetadataPromise = session.coupleId ? getCoupleMetadata(session.coupleId) : Promise.resolve(null)
+  const coupleDataPromise = session.coupleId ? getCoupleData(session.coupleId) : Promise.resolve(null)
+  const coupleHistoryPromise = session.coupleId
+    ? coupleMetadataPromise.then((metadata) => getCoupleHistory(session.coupleId!, metadata?.couple?.monthly_budget ?? 0))
+    : Promise.resolve(null)
+  const [user, expenses, individualHistory, coupleData, coupleHistory] = await Promise.all([
+    userPromise,
+    individualExpensesPromise,
+    individualHistoryPromise,
+    coupleDataPromise,
+    coupleHistoryPromise,
+  ])
   if (!user) redirect('/login')
-
-  const expenses = await getIndividualExpenses(user.id)
-  const coupleData = session.coupleId ? await getCoupleData(session.coupleId) : null
-  const individualHistory = await getIndividualHistory(user.id)
-  const coupleHistory = session.coupleId ? await getCoupleHistory(session.coupleId, coupleData?.couple?.monthly_budget ?? 0) : null
 
   // Ritmo del mes
   const { spent: gastado, income: ingresos } = movementTotals(expenses)
@@ -220,7 +228,6 @@ export default async function MetricasPage() {
           )}
         </div>
       </div>
-      <BottomNav />
     </div>
   )
 }

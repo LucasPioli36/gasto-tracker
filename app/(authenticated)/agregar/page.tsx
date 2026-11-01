@@ -1,12 +1,11 @@
 import { addExpense } from '@/actions/expenses'
-import BottomNav from '@/components/BottomNav'
 import ExpenseForm from '@/components/ExpenseForm'
-import { getRecentDescriptions, verifySession } from '@/lib/dal'
+import { verifySession } from '@/lib/dal'
+import { todayInMontevideo } from '@/lib/investment-format'
 
 export default async function AgregarPage({ searchParams }: { searchParams: Promise<{ tipo?: string }> }) {
   const session = await verifySession()
   const { tipo } = await searchParams
-  const suggestions = await getRecentDescriptions(session.userId, session.coupleId)
 
   return (
     <div className="min-h-screen bg-gray-950">
@@ -15,18 +14,17 @@ export default async function AgregarPage({ searchParams }: { searchParams: Prom
         <ExpenseForm
           mode="add"
           action={addExpense}
-          suggestions={suggestions}
+          draftKey={`expense-draft:${session.userId}:new`}
           initial={{
             tipo: tipo === 'pareja' ? 'pareja' : 'individual',
             isIncome: false,
             category: '',
             amount: '',
             description: '',
-            date: new Date().toISOString().split('T')[0],
+            date: todayInMontevideo(),
           }}
         />
       </div>
-      <BottomNav />
     </div>
   )
 }
