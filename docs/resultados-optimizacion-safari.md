@@ -7,7 +7,8 @@ Fecha: 2026-11-01
 - Rama: `codex/optimizacion-safari` ([ver rama en GitHub](https://github.com/LucasPioli36/gasto-tracker/tree/codex/optimizacion-safari)).
 - Base actualizada: `origin/main` — `0e0c93a649bd240b5f21611ccc3f8b9e9fcf4bdf` (incluye Inversiones CSPX).
 - SHA previo revisado: `4719724e9e2c307e9c74a47d0a0b9848b4f34bbf`.
-- SHA corregido de revisión: `5b0ad985b0311100655b811a6c96b7838672e3c0` (commit `fix Safari expense recovery review findings`).
+- SHA corregido de primera revisión: `5b0ad985b0311100655b811a6c96b7838672e3c0`.
+- SHA corregido tras la segunda revisión: `aed50e3fd59cacc42b4b38c8f52197991b0080a1` (commit `fix concurrent expense submission identity`).
 - PR: no creado; la CLI de GitHub indica que las credenciales locales son inválidas.
 - Preview y SHA de producción: no verificados. Vercel CLI devolvió `fetch failed` al consultar el proyecto y la herramienta web no pudo abrir el dominio. Esto no confirma que el sitio esté caído.
 - Producción: sin cambios ni publicación.
@@ -37,11 +38,11 @@ Evidencia: [DAL](../lib/dal.ts), [Inicio](../app/(authenticated)/home/page.tsx),
 ### P2 — Estados y recuperación de operaciones: parcial
 
 - Configuración, gastos e inversiones conservan estados pendientes y errores visibles. Las escrituras de configuración, edición y eliminación verifican errores y filas afectadas; el borrado conserva confirmación y devuelve errores de sesión/permisos al flujo de navegación.
-- Las altas y ediciones mantienen los valores del formulario al fallar. El borrador restaura su clave una sola vez sin alternarla por cambios de estado. La clave de idempotencia vincula el UUID con SHA-256 del usuario y los datos persistidos; un reuso con contenido diferente se rechaza. Un `23505` solo confirma éxito después de consultar una fila del usuario autenticado y verificar la misma huella. El lote de cuotas sigue siendo un único `INSERT`.
-- Se agregó `migrations/2026-11-01-expense-submission-idempotency.sql` y se actualizó `schema.sql`/`lib/db.ts`. **La migración no se aplicó** porque no hay acceso confirmado a una base de prueba. Debe aplicarse a la base de preview antes de probar altas; hasta entonces, el guardado de gastos en un despliegue con el esquema anterior devolverá un error.
-- La decisión de reconciliación, validación de UUID, huella y clasificación de errores únicos tiene cinco pruebas unitarias. No se ejecutaron escenarios reales de desconexión, doble toque, permisos, sesión vencida, cuotas ni duplicados; el flujo de `addExpense()` todavía requiere prueba de integración con la migración aplicada.
+- Las altas y ediciones mantienen los valores del formulario al fallar. El borrador restaura su clave una sola vez sin alternarla por cambios de estado. Para altas, la base impone unicidad por `(submission_user_id, submission_identity)` con identidad estable `requestId:installmentIndex`; la huella SHA-256 se guarda en la misma fila. En concurrencia, solo una solicitud puede insertar la identidad. La otra relee la fila bajo el usuario autenticado y confirma únicamente la misma huella; contenido distinto devuelve error. El lote de cuotas sigue siendo un único `INSERT` atómico.
+- La migración agrega identidad, huella y usuario de envío, crea el índice único compuesto y mapea claves previas reconocibles. Aborta con un error explícito si no puede mapear todas las claves existentes o detecta identidades duplicadas; no borra datos. **La migración no se aplicó** porque no hay acceso confirmado a una base de prueba. Si se detectan duplicados, hay que conciliarlos antes de continuar.
+- `submitExpenseAtomically()`, el flujo que usa `addExpense()`, tiene pruebas concurrentes en una base simulada con unicidad compuesta. Cubren reintento idéntico, monto/ámbito/cuotas distintos y aislamiento entre usuarios. No se ejecutaron escenarios reales en PostgreSQL; la integración real sigue pendiente.
 
-Evidencia: [acciones de gastos](../actions/expenses.ts), [acciones de configuración](../actions/config.ts), [formularios de inversión existentes](../actions/investments.ts), [formulario de gastos](../components/ExpenseForm.tsx), [eliminación](../components/ExpenseItem.tsx), [migración pendiente](../migrations/2026-11-01-expense-submission-idempotency.sql), [esquema](../schema.sql).
+Evidencia: [acciones de gastos](../actions/expenses.ts), [coordinación e identidad de envíos](../lib/expense-submission.ts), [pruebas concurrentes](../tests/expense-recovery.test.mts), [acciones de configuración](../actions/config.ts), [formularios de inversión existentes](../actions/investments.ts), [formulario de gastos](../components/ExpenseForm.tsx), [eliminación](../components/ExpenseItem.tsx), [migración pendiente](../migrations/2026-11-01-expense-submission-idempotency.sql), [esquema](../schema.sql).
 
 ### P2 — Alta de gastos más corta: parcial
 
@@ -94,15 +95,15 @@ Los conteos siguientes describen llamadas del código, no solicitudes observadas
 
 - Se conservaron las funciones existentes de totales y cálculos; la modificación no cambió `lib/totals.ts`, `lib/installments.ts`, autorización de rutas ni el control de propietario CSPX.
 - El acceso a pareja sigue usando el `coupleId` de la sesión. Inversiones continúa detrás de `requireInvestmentOwner()` y el enlace se muestra según el usuario propietario.
-- Altas de cuotas siguen siendo atómicas en un `INSERT`; un reintento idéntico se reconcilia por usuario y huella después de aplicar la migración. Reutilizar la misma clave con otros datos produce error visible y no éxito falso.
+- Altas de cuotas siguen siendo atómicas en un `INSERT`; la identidad estable por usuario y número de cuota impide que dos solicitudes concurrentes inserten dos lotes. El reintento idéntico se reconcilia por usuario y huella; reutilizar la clave con otros datos produce error visible.
 - Errores de comprobación de duplicados ahora impiden guardar en vez de continuar sin la consulta. Errores de escritura no producen estado exitoso.
-- Las pruebas unitarias verifican que cambiar monto, ámbito, cuotas, descripción o usuario cambia la huella; y que solo clave/huella coincidentes reconcilian como guardado previo. No prueban escrituras ni concurrencia contra PostgreSQL.
-- **Saldos coincidentes, aislamiento entre dos cuentas, permisos, cuotas, duplicados, solicitudes simultáneas y rechazos de escritura: no verificados con datos de prueba**, por falta de base y sesión de prueba accesibles.
+- Nueve pruebas unitarias verifican helpers y fuerzan dos lecturas vacías iniciales concurrentes antes de insertar en una base en memoria con unicidad `(userId, identity)`. En la simulación, solicitudes idénticas producen una fila y respuestas `saved/same`; cambios de monto, ámbito o cuotas producen solo una fila/lote y respuestas `saved/different`; dos usuarios pueden usar el mismo UUID sin cruzar datos. Las pruebas ejercitan el orquestador compartido por `addExpense()`, pero no ejecutan toda la Server Action ni PostgreSQL.
+- **Saldos coincidentes, permisos, cuotas, duplicados, rechazos de escritura e integración concurrente contra PostgreSQL: no verificados con datos de prueba**, por falta de base y sesión accesibles.
 
 ## 6. Validación
 
-- `npm run lint`: pasó sin errores ni avisos.
-- `npm test`: pasó, 5/5 pruebas unitarias de claves de borrador, huella, conciliación y clasificación de conflicto. Node mostró el aviso de módulo `strip-types` al cargar utilidades `.ts`; no afectó el resultado.
+- `npm run lint`: pasó con 0 errores. La revisión de `5b0ad98` reportó dos avisos preexistentes en `app/demo/page.tsx` (`Home` y `NAV` sin uso); no están relacionados con estos cambios.
+- `npm test`: pasó, 9/9 pruebas unitarias, incluidas cuatro pruebas de concurrencia con lecturas iniciales sincronizadas. Node mostró el aviso de módulo `strip-types` al cargar utilidades `.ts`; no afectó el resultado.
 - `npm run build`: pasó con Next.js 16.2.10 / React 19.2.4 tras habilitar acceso de red para que `next/font/google` obtuviera Geist.
 - `git diff --check`: pasó antes del commit de correcciones.
 - Compilación mostró las URLs originales (`/agregar`, `/config`, `/editar/[id]`, `/home`, `/individual`, `/inversiones`, `/metricas`, `/pareja`).
@@ -110,7 +111,7 @@ Los conteos siguientes describen llamadas del código, no solicitudes observadas
 
 ## 7. Pendientes
 
-1. Aplicar la migración de idempotencia a una base de **preview/prueba** y verificar que la versión de preview use ese esquema. El guardado de gastos depende de que exista `submission_key` y su índice único.
+1. Aplicar la migración de idempotencia a una base de **preview/prueba** y verificar que la versión de preview use ese esquema. El guardado depende de `submission_identity`, `submission_fingerprint`, `submission_user_id` y el índice compuesto único. Si la migración detecta claves históricas desconocidas o identidades duplicadas, conciliarlas y volver a ejecutarla.
 2. Conseguir cuentas de prueba individual, pareja y propietaria de CSPX. Ejecutar sesión iniciada/vencida, URL directa, acceso denegado a Inversiones, gasto/ingreso, cuotas, Otros, duplicado, fallo de escritura, desconexión, doble toque, edición y eliminación. Para reconciliación: guardar, simular respuesta perdida y reintentar igual; repetir con monto/ámbito/cuotas cambiados; confirmar filas y totales.
 3. Medir en build de producción las navegaciones principales con al menos 20 muestras bajo las mismas condiciones antes/después; registrar primera respuesta, contenido útil, p50, p95 y solicitudes. Medir mutaciones por separado con las muestras reales obtenidas.
 4. Probar 375/390 CSS px, zoom, teclado abierto/cerrado, safe area y Atrás/Adelante; cerrar con Safari en iPhone real. Registrar modelo, iOS, red y caché.
@@ -118,6 +119,6 @@ Los conteos siguientes describen llamadas del código, no solicitudes observadas
 
 ## 8. Revisión y publicación
 
-- La rama remota `codex/optimizacion-safari` está actualizada y lista para revisar; el commit de corrección es `5b0ad985b0311100655b811a6c96b7838672e3c0`, encima de `4719724`. Para reproducir localmente: aplicar el esquema de prueba, configurar variables locales y ejecutar `npm test`, `npm run lint` y `npm run build`.
+- La rama local `codex/optimizacion-safari` tiene el commit de corrección `aed50e3fd59cacc42b4b38c8f52197991b0080a1`, encima de `5b0ad98` y `4719724`; queda pendiente el push de esta segunda revisión para que la rama remota la incluya. Para reproducir localmente: aplicar el esquema de prueba, configurar variables locales y ejecutar `npm test`, `npm run lint` y `npm run build`.
 - No hay PR ni preview verificados: `gh auth status` informa credenciales inválidas, y Vercel CLI no pudo leer el proyecto. No se creó un preview manual.
-- Producción queda pendiente de revisión. Antes de publicar, aplicar y validar la migración en preview, ejecutar los flujos autenticados y verificar preview. Si se publica y hace falta revertir el código, revertir la cadena de cambios desde `5b0ad98` (incluido `4719724` según el estado que se quiera recuperar); revertir el efecto de la migración requiere una decisión de datos y no se automatizó.
+- Producción queda pendiente de revisión. Antes de publicar, subir la corrección de segunda revisión, aplicar y validar la migración en preview, ejecutar los flujos autenticados y verificar preview. Si se publica y hace falta revertir el código, revertir la cadena de cambios desde `aed50e3` (incluidos `5b0ad98` y `4719724` según el estado que se quiera recuperar); revertir el efecto de la migración requiere una decisión de datos y no se automatizó.

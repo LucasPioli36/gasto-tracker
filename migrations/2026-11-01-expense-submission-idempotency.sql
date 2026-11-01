@@ -9,7 +9,7 @@ CREATE UNIQUE INDEX IF NOT EXISTS expenses_submission_key_unique_idx
   WHERE submission_key IS NOT NULL;
 
 -- Backfill previous request keys, including the fingerprint format introduced in
--- the first review fix. Rows that cannot be safely parsed remain unclaimable.
+-- the first review fix. The migration below aborts if any non-null key is unknown.
 WITH parsed AS (
   SELECT
     id,
@@ -27,6 +27,28 @@ SET
   END
 FROM parsed
 WHERE parsed.id = e.id;
+
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1
+    FROM expenses
+    WHERE submission_key IS NOT NULL
+      AND (submission_identity IS NULL OR submission_user_id IS NULL)
+  ) THEN
+    RAISE EXCEPTION 'Cannot safely backfill all expense submission identities; inspect existing submission_key rows before retrying this migration.';
+  END IF;
+
+  IF EXISTS (
+    SELECT 1
+    FROM expenses
+    WHERE submission_identity IS NOT NULL AND submission_user_id IS NOT NULL
+    GROUP BY submission_user_id, submission_identity
+    HAVING COUNT(*) > 1
+  ) THEN
+    RAISE EXCEPTION 'Duplicate expense submission identities exist; reconcile duplicate rows before creating the unique index.';
+  END IF;
+END $$;
 
 CREATE UNIQUE INDEX IF NOT EXISTS expenses_submission_identity_unique_idx
   ON expenses (submission_user_id, submission_identity)
