@@ -20,7 +20,7 @@ Fecha: 2026-11-01
 - Los enlaces de navegación mantienen el prefetch predeterminado de Next 16; los enlaces por fila a Editar usan `prefetch={false}` para no precargar cada movimiento dinámico.
 - Falta medir la respuesta visual y comprobar Atrás/Adelante en Safari real. El esqueleto es compartido, no específico de cada pantalla.
 
-Archivos principales: `app/(authenticated)/layout.tsx`, `loading.tsx`, `error.tsx`, `components/BottomNav.tsx`, `components/BottomNavClient.tsx`, `components/ExpenseItem.tsx`.
+Evidencia: [layout autenticado](../app/(authenticated)/layout.tsx), [carga](../app/(authenticated)/loading.tsx), [error/reintento](../app/(authenticated)/error.tsx), [navegación de servidor](../components/BottomNav.tsx), [navegación interactiva](../components/BottomNavClient.tsx), [acciones por movimiento](../components/ExpenseItem.tsx).
 
 ### P1 — Latencia de lectura: parcial
 
@@ -31,7 +31,7 @@ Archivos principales: `app/(authenticated)/layout.tsx`, `loading.tsx`, `error.ts
 - No se alteró `React.cache()`: sigue deduplicando dentro de una petición. No se agregaron cachés persistentes, índices de rendimiento ni cambios de infraestructura sin mediciones que los justifiquen.
 - La comparación de duración, p95 y consultas reales queda pendiente por falta de sesión autenticada de prueba y acceso de medición a producción.
 
-Archivos principales: `lib/dal.ts`, `app/(authenticated)/home/page.tsx`, `individual/page.tsx`, `metricas/page.tsx`, `config/page.tsx`, `editar/[id]/page.tsx`.
+Evidencia: [DAL](../lib/dal.ts), [Inicio](../app/(authenticated)/home/page.tsx), [Yo](../app/(authenticated)/individual/page.tsx), [Métricas](../app/(authenticated)/metricas/page.tsx), [Configuración](../app/(authenticated)/config/page.tsx), [Editar](../app/(authenticated)/editar/[id]/page.tsx).
 
 ### P2 — Estados y recuperación de operaciones: parcial
 
@@ -40,7 +40,7 @@ Archivos principales: `lib/dal.ts`, `app/(authenticated)/home/page.tsx`, `indivi
 - Se agregó `migrations/2026-11-01-expense-submission-idempotency.sql` y se actualizó `schema.sql`/`lib/db.ts`. **La migración no se aplicó** porque no hay acceso confirmado a una base de prueba. Debe aplicarse a la base de preview antes de probar altas; hasta entonces, el guardado de gastos en un despliegue con el esquema anterior devolverá un error.
 - No se ejecutaron escenarios reales de desconexión, doble toque, permisos, sesión vencida, cuotas ni duplicados. La protección de reintentos se revisó en código, pero necesita la migración y la prueba de integración.
 
-Archivos principales: `actions/expenses.ts`, `actions/config.ts`, `actions/investments.ts` (sin cambio funcional), `components/ExpenseForm.tsx`, `components/ExpenseItem.tsx`, formularios de Configuración, migración y esquema.
+Evidencia: [acciones de gastos](../actions/expenses.ts), [acciones de configuración](../actions/config.ts), [formularios de inversión existentes](../actions/investments.ts), [formulario de gastos](../components/ExpenseForm.tsx), [eliminación](../components/ExpenseItem.tsx), [migración pendiente](../migrations/2026-11-01-expense-submission-idempotency.sql), [esquema](../schema.sql).
 
 ### P2 — Alta de gastos más corta: parcial
 
@@ -49,7 +49,7 @@ Archivos principales: `actions/expenses.ts`, `actions/config.ts`, `actions/inves
 - Guardar permanece en el flujo del formulario con posición `sticky` por encima de la barra inferior; se usan teclado decimal, labels asociados, errores próximos a sus campos y `aria-live`.
 - Las sugerencias recientes se omitieron para no bloquear la apertura. No se midió si el recorrido requiere menos desplazamientos ni se verificó el teclado abierto en iPhone.
 
-Archivos principales: `components/ExpenseForm.tsx`, `app/(authenticated)/agregar/page.tsx`, `actions/expenses.ts`.
+Evidencia: [formulario](../components/ExpenseForm.tsx), [ruta Agregar](../app/(authenticated)/agregar/page.tsx), [validación y guardado](../actions/expenses.ts).
 
 ### P2 — Controles y lectura móvil: parcial
 
@@ -57,7 +57,7 @@ Archivos principales: `components/ExpenseForm.tsx`, `app/(authenticated)/agregar
 - Se quitó la restricción de zoom del viewport y se usa `100dvh` con la safe area en la barra inferior.
 - No se verificaron anchos 375/390 CSS px, orientación, zoom, barra de Safari, foco, ni las dos variantes del permiso de Inversiones en un dispositivo. No se declara validado Safari en iPhone.
 
-Archivos principales: `components/BottomNavClient.tsx`, `components/ExpenseItem.tsx`, `app/layout.tsx`, `app/globals.css`.
+Evidencia: [barra inferior](../components/BottomNavClient.tsx), [acciones táctiles](../components/ExpenseItem.tsx), [viewport y zoom](../app/layout.tsx), [safe area y altura dinámica](../app/globals.css).
 
 ## 3. Resultados medidos
 
