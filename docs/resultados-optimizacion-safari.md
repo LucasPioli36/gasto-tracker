@@ -118,6 +118,6 @@ Los conteos siguientes describen llamadas del código, no solicitudes observadas
 
 ## 8. Revisión y publicación
 
-- La rama local está lista para revisar; el commit de corrección es `5b0ad985b0311100655b811a6c96b7838672e3c0`, encima de `4719724`. Para reproducir localmente: aplicar el esquema de prueba, configurar variables locales y ejecutar `npm test`, `npm run lint` y `npm run build`.
+- La rama remota `codex/optimizacion-safari` está actualizada y lista para revisar; el commit de corrección es `5b0ad985b0311100655b811a6c96b7838672e3c0`, encima de `4719724`. Para reproducir localmente: aplicar el esquema de prueba, configurar variables locales y ejecutar `npm test`, `npm run lint` y `npm run build`.
 - No hay PR ni preview verificados: `gh auth status` informa credenciales inválidas, y Vercel CLI no pudo leer el proyecto. No se creó un preview manual.
-- Producción queda pendiente de revisión. Antes de publicar, publicar el commit corregido en la rama remota, aplicar y validar la migración en preview, ejecutar los flujos autenticados y verificar preview. Si se publica y hace falta revertir el código, revertir la cadena de cambios desde `5b0ad98` (incluido `4719724` según el estado que se quiera recuperar); revertir el efecto de la migración requiere una decisión de datos y no se automatizó.
+- Producción queda pendiente de revisión. Antes de publicar, aplicar y validar la migración en preview, ejecutar los flujos autenticados y verificar preview. Si se publica y hace falta revertir el código, revertir la cadena de cambios desde `5b0ad98` (incluido `4719724` según el estado que se quiera recuperar); revertir el efecto de la migración requiere una decisión de datos y no se automatizó.
