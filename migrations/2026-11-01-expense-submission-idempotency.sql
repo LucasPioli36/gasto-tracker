@@ -19,12 +19,18 @@ WITH parsed AS (
 )
 UPDATE expenses AS e
 SET
-  submission_user_id = COALESCE(e.user_id, e.created_by),
-  submission_identity = parsed.parts[1] || ':' || parsed.parts[array_length(parsed.parts, 1)],
-  submission_fingerprint = CASE
-    WHEN array_length(parsed.parts, 1) = 3 THEN parsed.parts[2]
-    ELSE NULL
-  END
+  submission_user_id = COALESCE(e.submission_user_id, e.user_id, e.created_by),
+  submission_identity = COALESCE(
+    e.submission_identity,
+    parsed.parts[1] || ':' || parsed.parts[array_length(parsed.parts, 1)]
+  ),
+  submission_fingerprint = COALESCE(
+    e.submission_fingerprint,
+    CASE
+      WHEN array_length(parsed.parts, 1) = 3 THEN parsed.parts[2]
+      ELSE NULL
+    END
+  )
 FROM parsed
 WHERE parsed.id = e.id;
 
