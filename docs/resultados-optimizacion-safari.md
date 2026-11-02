@@ -2,7 +2,7 @@
 
 Fecha: 2026-11-01
 
-**Actualización 2026-11-02:** el estado vigente está en [Validación previa a publicación](validacion-publicacion-safari.md). Se completaron 11 pruebas contra PostgreSQL real, un respaldo lógico de las nueve tablas públicas con restauración verificada, recorridos autenticados con datos ficticios y controles de permisos. Se corrigió el tamaño táctil de cuotas y se preparó un enlace temporal para Safari. El usuario lo probará más tarde; producción continúa sin migrar ni publicar. Las limitaciones descritas abajo corresponden al informe inicial, salvo lo actualizado en ese documento.
+**Actualización 2026-11-02:** el estado vigente está en [Validación y publicación](validacion-publicacion-safari.md). Se completaron 11 pruebas contra PostgreSQL real, un respaldo lógico de las nueve tablas públicas con restauración verificada, recorridos autenticados con datos ficticios y controles de permisos. Se corrigió el tamaño táctil de cuotas. A pedido del usuario se aplicó la migración productiva y se publicó `d95ebb5` en el dominio habitual; Vercel READY y comprobaciones iniciales correctas. Los 347 movimientos presentes al migrar conservaron sus datos históricos. La prueba real en Safari y la comparación de rendimiento siguen pendientes. Las limitaciones descritas abajo corresponden al informe inicial, salvo lo actualizado en ese documento.
 
 ## 1. Identificación
 

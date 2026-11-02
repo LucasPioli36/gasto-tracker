@@ -2,6 +2,8 @@
 
 Fecha de inicio: 2026-11-02. Base revisada: `0226e15`.
 
+**Estado vigente: publicado en producción el 2026-11-02.** Código `d95ebb5`, despliegue `dpl_GccwxmRfGKaZ3cJCR27wR2Dxx1yk`. El usuario solicitó el deploy después de dejar la prueba física de Safari para más tarde. El detalle de la publicación figura al final; las secciones previas conservan el registro de preparación.
+
 ## Estado comprobado
 
 - Proyecto Vercel confirmado: `lucasteam3/gasto-tracker`.
@@ -111,4 +113,35 @@ El último comando comprueba los registros ficticios creados por los recorridos 
 
 Tras la corrección táctil: `npm test` 9/9; `npm run lint` 0 errores, los dos avisos preexistentes de `app/demo/page.tsx`; build de producción local correcto con TypeScript y configuración ficticia.
 
-La migración productiva y la publicación todavía no se realizaron.
+## Publicación realizada
+
+El usuario solicitó publicar sin esperar la prueba de Safari del iPhone. Se desplegó una copia de `git archive d95ebb5`, sin variables locales, respaldos, clúster de prueba ni documentos no versionados. El proyecto y propietario se confirmaron antes de desplegar: `lucasteam3/gasto-tracker`, `prj_TvMKHz35kUP8id9YMMjPFGmgaXEE`.
+
+| Elemento | Resultado |
+|---|---|
+| URL productiva | https://gasto-tracker-rho.vercel.app |
+| URL del artefacto | https://gasto-tracker-od198fcs4-lucasteam3.vercel.app |
+| Despliegue | `dpl_GccwxmRfGKaZ3cJCR27wR2Dxx1yk` |
+| Código publicado | `d95ebb5`, rama `codex/optimizacion-safari` |
+| Framework | Next.js 16.2.10 |
+| Compilación en Vercel | Correcta, build de 24 s con TypeScript |
+| Activación | `vercel promote`, después de migrar y verificar |
+| Estado del dominio | Apunta al despliegue nuevo, READY |
+
+Antes de migrar se exportó otra copia consistente de las nueve tablas públicas. Se guardó cifrada en `.vercel/validation-20261102/backups/public-predeploy-d95ebb5.csv.dpapi` y se verificó descifrado, checksum, restauración local y dos ejecuciones de la migración. Esta copia conserva 678 filas en total y 346 gastos. No se subió a Git ni Vercel.
+
+La migración productiva se ejecutó en una transacción con `lock_timeout` de 5 s y `statement_timeout` de 30 s, fijando `search_path` a `public, pg_temp`. Se bloqueó `expenses` durante la operación y se compararon cantidad y checksum de todos los campos históricos antes y después. Cualquier diferencia habría abortado la transacción. Al tomar el bloqueo ya había **347 movimientos**, uno más que en el snapshot del respaldo; la comprobación incluyó y conservó los 347. La ejecución confirmó `migration_committed`, cuatro columnas de envío y los dos índices únicos. [Captura de confirmación](evidencias-validacion-safari/migracion-productiva.jpg).
+
+La consulta posterior a la API REST productiva confirmó que las cuatro columnas nuevas ya están disponibles y que el conteo sigue siendo 347. Fue una lectura; no se crearon movimientos ficticios en producción.
+
+El dominio productivo respondió con Login 200; las siete pantallas protegidas redirigieron a Login sin sesión; sugerencias respondió 401 sin sesión. Se volvió a abrir Login en el navegador. La consulta acotada de logs de error del despliegue nuevo, últimos 15 minutos, no devolvió eventos. Es una observación inicial, no una garantía sobre el uso posterior ni monitoreo continuo.
+
+Los recorridos autenticados completos de producción y Safari en iPhone siguen pendientes. Las validaciones autenticadas descritas antes se realizaron con datos ficticios en el entorno local. No se declara comprobada una mejora cuantitativa de rendimiento productivo.
+
+La publicación fue manual a partir de la rama de optimización; no se cambió `main` ni se creó un PR en esta operación. El código publicado está en el commit remoto indicado. El despliegue anterior sigue identificado para reversión:
+
+```powershell
+vercel rollback https://gasto-tracker-7cfh7xoyj-lucasteam3.vercel.app --yes
+```
+
+Una reversión de código puede conservar esta migración aditiva. No restaurar automáticamente el snapshot ni borrar columnas: eso podría perder o afectar operaciones posteriores al respaldo.
