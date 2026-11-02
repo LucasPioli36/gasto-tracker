@@ -2,6 +2,8 @@
 
 Fecha: 2026-11-01
 
+**Actualización 2026-11-02:** el estado vigente está en [Validación previa a publicación](validacion-publicacion-safari.md). Se completaron 11 pruebas contra PostgreSQL real, un respaldo lógico de las nueve tablas públicas con restauración verificada, recorridos autenticados con datos ficticios y controles de permisos. Se corrigió el tamaño táctil de cuotas y se preparó un enlace temporal para Safari. El usuario lo probará más tarde; producción continúa sin migrar ni publicar. Las limitaciones descritas abajo corresponden al informe inicial, salvo lo actualizado en ese documento.
+
 ## 1. Identificación
 
 - Rama: `codex/optimizacion-safari` ([ver rama en GitHub](https://github.com/LucasPioli36/gasto-tracker/tree/codex/optimizacion-safari)).

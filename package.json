@@ -7,7 +7,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "test": "node --experimental-strip-types --test tests/expense-recovery.test.mts"
+    "test": "node --experimental-strip-types --test tests/expense-recovery.test.mts",
+    "test:postgres": "node --experimental-strip-types --test tests/expense-postgres.integration.test.mjs"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.0",
@@ -27,6 +28,7 @@
     "@types/react-dom": "^19",
     "eslint": "^9",
     "eslint-config-next": "16.2.10",
+    "pg": "^8.23.1",
     "tailwindcss": "^4",
     "typescript": "^5"
   }

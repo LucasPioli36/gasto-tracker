@@ -271,7 +271,7 @@ export default function ExpenseForm({ action, initial, mode, members = [], draft
                 key={n}
                 type="button"
                 onClick={() => setInstallments(n)}
-                className={`flex-1 py-2.5 rounded-xl text-sm font-semibold transition-colors ${
+                className={`min-h-11 flex-1 py-2.5 rounded-xl text-sm font-semibold transition-colors ${
                   installments === n ? 'bg-emerald-600 text-white' : 'bg-gray-900 text-gray-400 hover:bg-gray-800'
                 }`}
               >
@@ -291,7 +291,7 @@ export default function ExpenseForm({ action, initial, mode, members = [], draft
                 const n = Math.trunc(Number(e.target.value))
                 setInstallments(n >= 1 ? Math.min(n, MAX_INSTALLMENTS) : 1)
               }}
-              className="w-16 bg-gray-900 border border-gray-800 rounded-xl px-2 text-center text-white placeholder-gray-600 focus:outline-none focus:border-emerald-600 text-sm"
+              className="min-h-11 w-16 bg-gray-900 border border-gray-800 rounded-xl px-2 text-center text-white placeholder-gray-600 focus:outline-none focus:border-emerald-600 text-base"
             />
           </div>
           {state?.field === 'installments' && <p id="expense-installments-error" role="alert" aria-live="assertive" className="mt-2 text-sm text-red-300">{state.error}</p>}
